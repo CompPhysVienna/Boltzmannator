@@ -189,6 +189,20 @@ class NormFlowApp:
 
     # ── UI construction ───────────────────────────────────────────────────────
 
+    # ── Header-picture chooser ────────────────────────────────────────────────
+
+    def _pic_dot_style(self, active):
+        """Style for one selector circle (shown beside the header image on the
+        grey panel); filled blue when current, hollow grey otherwise."""
+        return ("width:13px; height:13px; border-radius:50%; cursor:pointer; "
+                + ("background:#1565C0; border:2px solid #1565C0"
+                   if active else "background:transparent; border:2px solid #999"))
+
+    def _choose_pic(self, i):
+        self._header_img.set_source(f"/static/{self._pic_files[i]}")
+        for j, dot in enumerate(self._pic_dots):
+            dot.style(replace=self._pic_dot_style(j == i))
+
     def _build_ui(self):
         # Per-page CSS — each browser gets its own page, so this is added per
         # client.  Static files are registered once, globally, in the entry
@@ -259,10 +273,26 @@ class NormFlowApp:
                     "width:340px; min-width:340px; height:100vh; "
                     "background:#f0f0f0; padding:4px"):
 
-                # Header image
+                # Header image with three small circles (overlaid in the
+                # corner, so they cost no extra vertical space) to choose the
+                # picture; the filled circle marks the current choice.
+                self._pic_files = ["Boltzmannator_title.png",
+                                   "Boltzmannator_movie.png",
+                                   "Boltzmann.png"]
+                self._pic_dots = []
                 try:
-                    ui.image("/static/Boltzmannator_title.png").style(
-                        "width:240px; display:block; margin:0 auto 4px")
+                    with ui.row().classes("no-wrap").style(
+                            "width:100%; justify-content:center; "
+                            "align-items:center; gap:8px; margin:0 auto 4px"):
+                        self._header_img = ui.image(
+                            f"/static/{self._pic_files[0]}").style(
+                            "width:230px; display:block")
+                        with ui.column().style("gap:7px"):
+                            for i in range(len(self._pic_files)):
+                                dot = ui.element("div").classes("cursor-pointer")
+                                dot.style(self._pic_dot_style(i == 0))
+                                dot.on("click", lambda e, i=i: self._choose_pic(i))
+                                self._pic_dots.append(dot)
                 except Exception:
                     pass
 
