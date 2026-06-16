@@ -1,0 +1,10 @@
+# Track ONLY the distribution files (everything else is ignored).
+# Ignore everything by default, then re-include the files we want.
+*
+
+!.gitignore
+!Boltzmannator.py
+!requirements.txt
+!README.md
+!Boltzmannator_title.png
+!Boltzmannator_doc.pdf

@@ -1,0 +1,7 @@
+# Boltzmannator 6 (NiceGUI app) — dependencies
+nicegui>=3.13
+numpy>=1.26
+matplotlib>=3.8
+
+# Optional: only needed for a native desktop window instead of the browser
+# pywebview>=5
