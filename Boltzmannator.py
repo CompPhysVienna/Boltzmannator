@@ -1394,11 +1394,13 @@ class NormFlowApp:
                 except Exception:
                     pass
         else:
-            empty_axes = [(self.ax_hist_x, "Transformed $x$")]
+            empty_axes = [(self.ax_hist_x, "Transformed $x$", "$x$")]
             if frozen is None:
-                empty_axes.insert(0, (self.ax_hist_z, "Latent $z$"))
-            for ax, name in empty_axes:
+                empty_axes.insert(0, (self.ax_hist_z, "Latent $z$", "$z$"))
+            for ax, name, xlab in empty_axes:
                 ax.set_title(name, fontsize=12, pad=3)
+                ax.set_xlabel(xlab, fontsize=12, labelpad=4)
+                ax.set_ylabel("density", fontsize=12, labelpad=4)
                 ax.text(0.5, 0.5, "Press  'Sample!'\nto generate points",
                         transform=ax.transAxes, ha="center", va="center",
                         fontsize=9, color="#888",
@@ -1443,7 +1445,7 @@ class NormFlowApp:
                                 bbox_to_anchor=(0.5, 0.93), ncol=3, frameon=False,
                                 handlelength=1.2, columnspacing=0.9, handletextpad=0.3)
             self.ax_loss.set_xlabel("epoch", fontsize=12, labelpad=4)
-            self.ax_loss.set_ylabel("Loss",  fontsize=12, labelpad=4)
+            self.ax_loss.set_ylabel("loss",  fontsize=12, labelpad=4)
             self.ax_loss.set_xlim(1, max(epochs))
             _all = [v for v in (self._loss_history + self._loss_energy_history
                                 + self._loss_entropy_history) if np.isfinite(v)]
@@ -1457,6 +1459,8 @@ class NormFlowApp:
                                      labelsize=10, bottom=True, left=True,
                                      labelbottom=True, labelleft=True)
         else:
+            self.ax_loss.set_xlabel("epoch", fontsize=12, labelpad=4)
+            self.ax_loss.set_ylabel("loss",  fontsize=12, labelpad=4)
             self.ax_loss.text(0.5, 0.5, "Press  'Train!'\nto start training",
                               transform=self.ax_loss.transAxes,
                               ha="center", va="center", fontsize=9, color="#888",
