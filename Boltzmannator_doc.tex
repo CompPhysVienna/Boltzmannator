@@ -1,0 +1,745 @@
+%% Boltzmannator — theory and user guide
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{parskip}
+\usepackage{microtype}
+
+\hypersetup{colorlinks=true, linkcolor=blue!60!black, urlcolor=blue!60!black}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\pz}{p_z}
+\newcommand{\px}{p_x}
+\newcommand{\ft}{f_{\!\theta}}
+\newcommand{\Jf}{J_{\!f}}
+\newcommand{\kT}{k_{\!B}T}
+\newcommand{\param}{\theta}
+\newcommand{\sigmoid}{\sigma}
+
+\title{\textbf{Boltzmannator}\\[4pt]
+       \large A Visual Explorer for One-Dimensional Normalising Flows}
+\author{Claude Code \and Christoph Dellago}
+\date{}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\bigskip
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Introduction}
+
+\textbf{Boltzmannator} is an interactive, browser-based application for
+exploring normalising flows in one dimension.  Given a user-chosen
+\emph{latent} distribution $\pz(z)$ and a parametric transformation
+$x = \ft(z)$, the app visualises how the probability density is reshaped
+under the map, computes the push-forward density $\px(x)$, and trains the
+parameters $\param$ against either a target Boltzmann distribution
+(energy-based mode) or a set of example data points (maximum-likelihood
+mode).  The aim is to make the interplay between the transformation, the
+Jacobian, and the resulting density immediately tangible.
+
+Normalising flows were introduced as a tool for flexible probability-density
+modelling and variational inference \cite{rezende2015}; see
+\cite{papamakarios2021} for a comprehensive review.  In statistical physics
+the same idea underlies \emph{Boltzmann Generators}, which learn a flow that
+maps a simple latent density onto a target Boltzmann distribution to sample
+equilibrium states of many-body systems \cite{noe2019boltzmann} (see
+\cite{coretti2024kimreview} for a short review).  Boltzmann Generators have
+since been extended to free-energy estimation via learned mappings
+\cite{wirnsberger2020}, to rare-event and transition-path sampling
+\cite{falkner2023}, to the efficient mapping of phase diagrams and equilibrium
+sampling of large-scale materials with conditional flows
+\cite{schebek2024,schebek2025}, and to learning mappings between equilibrium
+states of liquid systems \cite{coretti2025jcp}.  Boltzmannator illustrates
+these ideas in the simplest possible one-dimensional setting.
+
+The program is written in Python using the \href{https://nicegui.io}{NiceGUI}
+framework, with all numerics in NumPy and the figures rendered by Matplotlib.
+It runs as a small local web server and is used through a web browser at
+\texttt{http://localhost:8080}.  Because it is served over the network, several
+users on the same local network can connect simultaneously (e.g.\ students in a
+classroom opening \texttt{http://\textit{host-ip}:8080}); each browser gets its
+own fully independent session, so one user's parameters and training never
+affect another's.  Installation and start-up instructions are given in the
+accompanying \texttt{README}.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Mathematical Background}
+
+\subsection{The Change-of-Variables Formula}
+
+Let $z \in \R$ be a random variable with density $\pz(z)$, and let
+$x = \ft(z)$ be a differentiable, invertible (monotone) function
+parametrised by $\param$.  The \emph{push-forward} density of $x$ is
+obtained from the change-of-variables formula:
+\begin{equation}
+  \px(x) \;=\; \frac{\pz\!\left(\ft^{-1}(x)\right)}{|\Jf(z)|}
+  \;=\; \frac{\pz(z)}{|\Jf(z)|},
+  \label{eq:cov}
+\end{equation}
+where $z = \ft^{-1}(x)$ is the pre-image and
+\begin{equation}
+  \Jf(z) \;=\; \frac{d\ft}{dz}
+\end{equation}
+is the (scalar) Jacobian.  Equation~\eqref{eq:cov} is the cornerstone of
+normalising flows: by choosing $\ft$ appropriately, any latent density
+$\pz$ can be mapped to an arbitrarily complex target density $\px$.
+
+The app displays the four quantities in \eqref{eq:cov} simultaneously:
+$\pz(z)$ (top strip), the curve $x = \ft(z)$ (main panel),
+$|\Jf(z)|^{-1}$ (bottom strip), and $\px(x)$ (right panel).
+The bottom strip shows the \emph{inverse} Jacobian because
+$\px(x) = \pz(z)\times|\Jf(z)|^{-1}$: the value directly reads off the
+local density-magnification factor ($>1$ compresses, $<1$ dilutes).
+
+\subsection{Latent Distributions}
+
+The following latent densities are available, all parametrised by a mean
+$\mu$ and a scale $\sigma$:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{lll}
+\toprule
+Name & Density $\pz(z)$ & Standard deviation \\
+\midrule
+Gaussian  & $\dfrac{1}{\sigma\sqrt{2\pi}}\exp\!\left(-\dfrac{(z-\mu)^2}{2\sigma^2}\right)$
+           & $\sigma$ \\
+Uniform   & $\dfrac{1}{2\sigma\sqrt{3}}$ for $|z-\mu| \le \sigma\sqrt{3}$, else $0$
+           & $\sigma$ \\
+Laplace   & $\dfrac{1}{\sigma\sqrt{2}}\exp\!\left(-\dfrac{\sqrt{2}\,|z-\mu|}{\sigma}\right)$
+           & $\sigma$ \\
+Bimodal   & $\dfrac{1}{2}\mathcal{N}(z;-\mu,\sigma)
+             +\dfrac{1}{2}\mathcal{N}(z;\,+\mu,\sigma)$
+           & $\sqrt{\mu^2+\sigma^2}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+For the \textbf{Bimodal} distribution the slider $\mu$ sets the
+\emph{peak positions} at $\pm\mu$ (not the overall mean, which is always
+zero), while $\sigma$ sets the width of each individual peak.  The slider
+is therefore restricted to $\mu \ge 0$; the default values are $\mu=1$,
+$\sigma=0.5$.
+
+\subsection{The Target Boltzmann Distribution}
+
+The target density used for energy-based training is a one-dimensional
+Boltzmann distribution,
+\begin{equation}
+  p^*(x) \;=\; \frac{1}{Z}\exp\!\left(-\frac{U(x)}{\kT}\right),
+  \qquad
+  Z = \int_{-\infty}^{\infty}\exp\!\left(-\frac{U(x)}{\kT}\right)dx,
+\end{equation}
+with the polynomial potential energy
+\begin{equation}
+  U(x) \;=\; u_1 x + u_2 x^2 + u_3 x^3 + u_4 x^4.
+\end{equation}
+The coefficients $u_1,\ldots,u_4$ and the temperature $T$ are controlled
+via sliders.  A positive $u_4$ ensures that $U \to +\infty$ for
+$|x|\to\infty$ and that the partition function $Z$ is finite.
+
+\subsubsection*{Exact transformation}
+
+When the target distribution is set up, the theoretically perfect
+transformation $x^*(z)$ can be computed as the composition of CDFs:
+\begin{equation}
+  x^*(z) \;=\; F_{\,p^*}^{-1}\!\bigl(F_{\pz}(z)\bigr),
+\end{equation}
+where $F_{\pz}$ and $F_{p^*}$ are the cumulative distribution functions of
+the latent and target densities, respectively.  This \emph{exact} curve is
+shown as a dashed reference line in the transformation panel.  Toggling
+\emph{Show exact transformation} does not change the displayed $z$- or
+$x$-range (the curve is simply drawn, clipped to the current axes).
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Parametric Transformations}
+
+\subsection{Polynomial Transformation}
+
+The polynomial family is
+\begin{equation}
+  \ft(z) \;=\; \theta_0 + \theta_1 z + \theta_2 z^2 + \theta_3 z^3,
+  \label{eq:poly}
+\end{equation}
+with Jacobian
+\begin{equation}
+  \Jf(z) \;=\; \theta_1 + 2\theta_2 z + 3\theta_3 z^2.
+\end{equation}
+A cubic can represent shifts, scalings, skewness, and mild non-linearity,
+but it is not guaranteed to be monotone: if $\Jf$ changes sign the
+transformation is not invertible and the change-of-variables formula
+\eqref{eq:cov} does not apply.  The app highlights regions of
+non-monotonicity in orange and displays a warning in the main panel.
+
+\subsection{Rational-Quadratic Spline (RQS) Transformation}
+\label{sec:rqs}
+
+The RQS family \cite{durkan2019neural} defines a piecewise
+rational-quadratic bijection on a finite support $[-B, B]$ with $K$
+bins, and extends linearly (identity) outside the support.
+
+\paragraph{Parameters.}
+Given $K$ bins, the raw parameters are:
+\begin{itemize}
+  \item Boundary $B > 0$ (one slider).
+  \item Unconstrained width logits $\tilde w_1,\ldots,\tilde w_K$: actual
+        bin widths $\Delta x_k = 2B \cdot \mathrm{softmax}(\tilde w)_k$,
+        so $\sum_k \Delta x_k = 2B$.
+  \item Unconstrained height logits $\tilde h_1,\ldots,\tilde h_K$: actual
+        heights $\Delta y_k = 2B \cdot \mathrm{softmax}(\tilde h)_k$.
+  \item Unconstrained derivative logits $\tilde d_0,\ldots,\tilde d_K$:
+        actual knot derivatives $d_k = e^{\tilde d_k} > 0$.
+        Setting $\tilde d_k = 0$ gives $d_k = 1$.
+\end{itemize}
+Knot positions are $x_0 = y_0 = -B$ and
+$x_{k+1} = x_k + \Delta x_k$, $y_{k+1} = y_k + \Delta y_k$.
+The total number of parameters is $3K + 2$ (including $B$).
+
+\paragraph{Forward pass.}
+For $z$ in bin $k$ (i.e.\ $x_k \le z < x_{k+1}$), define
+$\xi = (z - x_k)/\Delta x_k \in [0,1]$ and
+$s_k = \Delta y_k / \Delta x_k$.  Then
+\begin{equation}
+  \ft(z) \;=\; y_k
+  \;+\; \Delta y_k\,\frac{s_k\,\xi^2 + d_k\,\xi(1-\xi)}
+                        {s_k + (d_{k+1}+d_k-2s_k)\,\xi(1-\xi)},
+  \label{eq:rqs_fwd}
+\end{equation}
+with Jacobian
+\begin{equation}
+  \Jf(z) \;=\;
+  \frac{s_k^2\bigl[d_{k+1}\,\xi^2 + 2s_k\,\xi(1-\xi) + d_k(1-\xi)^2\bigr]}
+       {\bigl[s_k + (d_{k+1}+d_k-2s_k)\,\xi(1-\xi)\bigr]^2}.
+  \label{eq:rqs_jac}
+\end{equation}
+Since all $\Delta x_k, \Delta y_k, d_k > 0$ the transformation is always
+strictly monotone ($\Jf > 0$ everywhere in the support).
+
+\paragraph{Inverse pass.}
+Given $x_\mathrm{out}$ in bin $k$ (located by $y_k \le x_\mathrm{out} < y_{k+1}$),
+the normalised position $\xi$ is the root of the quadratic
+$a\xi^2 + b\xi + c = 0$ with
+\begin{align}
+  a &= \Delta y_k(s_k - d_k) + (x_\mathrm{out}-y_k)(d_{k+1}+d_k-2s_k),\\
+  b &= \Delta y_k\,d_k - (x_\mathrm{out}-y_k)(d_{k+1}+d_k-2s_k),\\
+  c &= -s_k(x_\mathrm{out}-y_k).
+\end{align}
+The physically meaningful root (in $[0,1]$) is selected; the original
+input is then recovered as $z = x_k + \xi\,\Delta x_k$.  Because the
+inverse is analytic, it requires no iterative bisection, making
+example-based training fast even for large datasets.
+
+\paragraph{Gradient.}
+Analytical gradients through the softmax/exp re-parameterisations are
+complex.  The app uses central finite differences instead
+($\varepsilon = 10^{-4}$), which requires $2(3K{+}2)$ forward passes
+per epoch — acceptable because each pass is $O(N)$.
+
+\subsection{Single-Layer Perceptron (SLP) Transformation}
+
+The SLP family combines a linear part with a sum of $K \le 8$ sigmoid
+units:
+\begin{equation}
+  \ft(z) \;=\; a + b\,z + \sum_{k=1}^{K} w_k\,\sigmoid\!\left(\frac{z-c_k}{s_k}\right),
+  \label{eq:slp}
+\end{equation}
+where $\sigmoid(t) = (1+e^{-t})^{-1}$ is the logistic sigmoid and
+$(w_k, c_k, s_k)$ are the weight, centre, and scale of the $k$-th unit.
+The Jacobian is
+\begin{equation}
+  \Jf(z) \;=\; b + \sum_{k=1}^{K} \frac{w_k}{s_k}\,
+                \sigmoid\!\left(\frac{z-c_k}{s_k}\right)
+                \left[1 - \sigmoid\!\left(\frac{z-c_k}{s_k}\right)\right].
+\end{equation}
+Because $\sigmoid(1-\sigmoid) \ge 0$, enforcing $w_k > 0$ and $b > 0$
+guarantees $\Jf(z) > 0$ everywhere, making \eqref{eq:slp} a
+\emph{strictly monotone} transformation.  The SLP can represent
+asymmetric, multimodal, and sigmoidal reshapings that the cubic polynomial
+cannot.
+
+The inverse $z = \ft^{-1}(x)$ has no closed form for $K \ge 1$; it is
+computed numerically by bisection (see Section~\ref{sec:bisection}).
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Training the Flow}
+
+\subsection{Energy-Based Training}
+\label{sec:energy}
+
+Given the target Boltzmann distribution $p^*(x)$, we want the push-forward
+$\px$ to approximate $p^*$.  A natural objective is the
+Kullback--Leibler divergence from the model to the target:
+\begin{equation}
+  D_{\mathrm{KL}}(\px \| p^*) \;=\;
+  \E_{\px}\!\left[\log\frac{\px(x)}{p^*(x)}\right]
+  \;=\;
+  \E_{z\sim\pz}\!\left[\frac{U(\ft(z))}{\kT}\right]
+  - \E_{z\sim\pz}\!\left[\log|\Jf(z)|\right]
+  + \text{const},
+\end{equation}
+where the constant $\log Z$ is independent of $\param$.  The \emph{variational
+free energy} (the trainable part) is therefore
+\begin{equation}
+  \boxed{
+  \mathcal{L}_{\text{energy}}(\param) \;=\;
+  \underbrace{\E_z\!\left[\frac{U(\ft(z))}{\kT}\right]}_{\text{energy term}}
+  \;-\;
+  \underbrace{\E_z\!\left[\log|\Jf(z)|\right]}_{\text{entropy term}}.
+  }
+  \label{eq:energy_loss}
+\end{equation}
+The energy term penalises configurations in high-potential regions; the
+entropy term rewards transformations with large Jacobian (i.e.\ spreading
+mass).  Together they drive the model towards the Boltzmann target.
+
+\subsection{Example-Based Training (Maximum Likelihood)}
+\label{sec:nll}
+
+When example data $\{x_i\}_{i=1}^N$ from an unknown distribution
+$p_{\mathrm{data}}(x)$ are available, the parameters can be trained by
+maximising the log-likelihood of the data under the model, or equivalently
+by minimising the negative log-likelihood (NLL):
+\begin{equation}
+  \boxed{
+  \mathcal{L}_{\text{NLL}}(\param) \;=\;
+  \E_{x\sim p_{\mathrm{data}}}\!\left[-\log\pz(z) + \log|\Jf(z)|\right],
+  }
+  \label{eq:nll_loss}
+\end{equation}
+where $z = \ft^{-1}(x)$ denotes the pre-image of each data point.  The
+two terms can be interpreted as
+\begin{itemize}
+  \item $-\E[\log\pz(z)]$: the latent-space entropy cost — the mapped
+        pre-images should be likely under $\pz$;
+  \item $+\E[\log|\Jf(z)|]$: the volume-change cost — a large Jacobian
+        compresses the target density, so the optimiser
+        balances spreading against fitting.
+\end{itemize}
+Training example data can be generated from the target Boltzmann
+distribution via the CDF-inversion trick described in Section~2.3.
+
+\subsection{Analytical Gradients}
+
+Both losses are minimised by stochastic gradient descent with analytical
+gradients, avoiding the $O(d)$ extra function evaluations of finite
+differences.
+
+\paragraph{Energy-based gradient.}
+For a parameter $\param_i$,
+\begin{equation}
+  \frac{\partial\mathcal{L}_{\text{energy}}}{\partial\param_i}
+  \;=\;
+  \E_z\!\left[\frac{dU}{dx}\,\frac{\partial\ft}{\partial\param_i}\,\frac{1}{\kT}
+              \;-\;
+              \frac{1}{\Jf(z)}\frac{\partial\Jf}{\partial\param_i}\right].
+\end{equation}
+
+\paragraph{NLL gradient.}
+Using the implicit-function theorem, $\partial z/\partial\param_i =
+-(\partial\ft/\partial\param_i)/\Jf(z)$, one obtains
+\begin{equation}
+  \frac{\partial\mathcal{L}_{\text{NLL}}}{\partial\param_i}
+  \;=\;
+  \E_x\!\left[
+    \left(s(z) - \frac{\partial_z\Jf}{\Jf}\right)
+    \frac{\partial\ft/\partial\param_i}{\Jf}
+    \;+\;
+    \frac{1}{\Jf}\frac{\partial\Jf}{\partial\param_i}
+  \right],
+\end{equation}
+where $s(z) = \partial_z\log\pz(z)$ is the \emph{score function} of the
+latent density.  Analytical expressions for $s(z)$ are available for all
+four latent families.
+
+\subsection{Parameter Optimisers}
+
+Four first-order optimisers are available.  In all cases $g$ denotes the
+current (mini-batch) gradient, $\eta$ the learning rate, and $t$ the epoch
+counter.
+
+\paragraph{Stochastic Gradient Descent (SGD).}
+The simplest update rule: move the parameters a fixed step $\eta$ in the
+negative gradient direction,
+\begin{equation}
+  \param \;\leftarrow\; \param - \eta\,g.
+\end{equation}
+Each update uses only the current gradient with no memory of past
+iterates.  Convergence can be slow and oscillatory near valleys where the
+loss surface curves differently in different directions.
+
+\paragraph{SGD with momentum.}
+Accumulates a velocity vector $m$ as an exponential moving average of
+past gradients,
+\begin{equation}
+  m \;\leftarrow\; \beta_1\,m + g,\qquad
+  \param \;\leftarrow\; \param - \eta\,m.
+\end{equation}
+The momentum term ($\beta_1 = 0.9$) damps oscillations and accelerates
+convergence along directions of consistent gradient sign, analogously to a
+ball rolling with inertia.
+
+\paragraph{RMSprop.}
+Maintains a per-parameter running average of squared gradients,
+\begin{equation}
+  v \;\leftarrow\; \beta_2\,v + (1-\beta_2)\,g^2,\qquad
+  \param \;\leftarrow\; \param
+         - \frac{\eta}{\sqrt{v+\varepsilon}}\,g.
+\end{equation}
+Dividing by $\sqrt{v}$ normalises each parameter's effective step size by
+the recent gradient magnitude, so parameters with large, noisy gradients
+take smaller steps while those with small gradients take larger ones.
+This adaptive scaling is particularly helpful when parameters operate on
+very different scales.  The app uses $\beta_2=0.9$, $\varepsilon=10^{-8}$.
+
+\paragraph{Adam (default).}
+Combines momentum and per-parameter adaptive scaling with
+bias-correction for the first few steps:
+\begin{align}
+  m &\;\leftarrow\; \beta_1\,m + (1-\beta_1)\,g,&
+  \hat m &= \frac{m}{1-\beta_1^t},\\
+  v &\;\leftarrow\; \beta_2\,v + (1-\beta_2)\,g^2,&
+  \hat v &= \frac{v}{1-\beta_2^t},\\
+  \param &\;\leftarrow\; \param
+         - \frac{\eta\,\hat m}{\sqrt{\hat v}+\varepsilon}.
+\end{align}
+The bias-corrected estimates $\hat m$ and $\hat v$ prevent the
+artificially small steps that would otherwise occur in the first few
+epochs when $m$ and $v$ are initialised at zero.  Adam inherits both the
+directional smoothing of momentum and the per-parameter scale adaptation
+of RMSprop, making it robust to a wide range of loss landscape shapes and
+the recommended default.  The app uses $\beta_1=0.9$, $\beta_2=0.999$,
+$\varepsilon=10^{-8}$.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Numerical Methods}
+
+\subsection{Bisection Inversion}
+\label{sec:bisection}
+
+The NLL gradient requires evaluating $z = \ft^{-1}(x)$ for every data
+point at every epoch.  For the SLP family this is done by bisection on the
+bracketing interval $[-20, 20]$: since $\ft$ is strictly monotone, the
+midpoint rule halves the interval at each step.  Starting from a bracket
+of width 40, after $n$ steps the residual is at most $40/2^n$; 30 steps
+reduce it below $4\times10^{-8}$, well within the target tolerance of
+$10^{-7}$.
+
+To avoid paying the bisection cost twice per epoch, the loss and gradient
+are computed in a single pass: the inverse $z = \ft^{-1}(x)$ is found
+once, the sigmoid activations and Jacobian are accumulated simultaneously,
+and both the loss and its gradient are evaluated from those shared
+intermediate quantities.
+
+\subsection{Example-Data Generation}
+
+Exact samples from the Boltzmann target $p^*$ are generated by
+quantile-transform sampling:
+\begin{equation}
+  x_i^* \;=\; F_{p^*}^{-1}\!\left(F_{\pz}(z_i)\right),
+\end{equation}
+where $z_i \sim \pz$.  Both CDFs are computed numerically on fine grids
+and the inversions are performed by linear interpolation.  This produces
+samples that are exact (up to grid resolution) without requiring Markov
+chain Monte Carlo.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\section{Application Interface}
+
+\subsection{Layout}
+
+The browser window is divided into two regions:
+\begin{itemize}
+  \item \textbf{Left — control panel.}  A fixed-width panel with a header
+        image and three tabs (\emph{Densities}, \emph{Map}, \emph{Training}),
+        followed by an auto-rescale checkbox and Reset / Exit buttons.  The
+        tabs are shown as a segmented control with icons; the \emph{Exit}
+        button closes the current browser session (it does not stop the
+        server for other users).
+  \item \textbf{Right — figure.}  A Matplotlib figure split into two
+        columns: the main four-panel display (left) and three histogram /
+        loss panels (right).
+\end{itemize}
+
+\subsection{Main Four-Panel Display}
+
+The panels share their horizontal axis ($z$) and are arranged vertically:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lll}
+\toprule
+Panel & Horizontal axis & Vertical axis \\
+\midrule
+Top strip  & $z$ & $\pz(z)$ (latent density, blue) \\
+Main panel & $z$ & $x = \ft(z)$ (transformation curve, red/orange) \\
+Bottom strip & $z$ & $|\Jf(z)|^{-1}$ (inverse Jacobian, red/orange) \\
+Right strip  & $\px(x)$ (density, green) & $x$ (shared with main) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Both axes of the main panel carry equal padding of 12\,\% of the
+respective data range beyond the displayed support, so the L-shaped
+mapping lines (see below) have symmetric margins on both sides.
+
+The main panel also shows the target density $p^*(x)$ (amber, when
+\emph{Show target} is ticked) and the exact transformation $x^*(z)$
+(dashed amber, when \emph{Show exact transformation} is ticked).
+Regions where $\Jf < 0$ are drawn in orange to flag non-invertibility.
+Enabling \emph{Show target} extends the $x$-range only if the target is
+\emph{wider} than the transformed distribution; a narrower target leaves
+the range unchanged (it never causes a spurious rescale).
+
+\paragraph{Mapping lines.}
+When \emph{Show mapping lines} is enabled (Densities tab), $N$ evenly
+spaced values $z_1,\ldots,z_N$ are chosen across the displayed $z$ range
+and each is connected to its image $x_i = \ft(z_i)$ by an L-shaped pair
+of grey segments:
+\begin{itemize}
+  \item a \emph{vertical leg} descending from the top edge of the main
+        panel down to the curve at $(z_i, x_i)$, and
+  \item a \emph{horizontal leg} running from $(z_i, x_i)$ to the right
+        edge of the main panel.
+\end{itemize}
+Lines end exactly at the panel borders; no markers are placed on the
+density curves or on the transformation curve itself.  While mapping
+lines are shown, the horizontal and vertical zero-reference lines in the
+main panel are suppressed to reduce visual clutter.  The number $N$ can
+be set between 1 and 100; values above 100 are automatically clamped.
+
+\subsection{Densities Tab}
+
+Controls the latent distribution (type and parameters) and the target
+Boltzmann distribution (temperature $\kT$, potential coefficients
+$u_1$--$u_4$).
+
+The $\mu$ and $\sigma$ sliders behave as follows:
+\begin{itemize}
+  \item For \textbf{Gaussian, Uniform, Laplace, Cauchy}: $\mu$ is the
+        mean (range $[-2,2]$, default $0$) and $\sigma$ is the scale
+        parameter (range $[0.1,2]$, default $1$).
+  \item For \textbf{Bimodal}: $\mu$ is the \emph{peak position} — the
+        two peaks sit at $-\mu$ and $+\mu$ — so only positive values are
+        meaningful.  The slider range is therefore restricted to $[0,2]$
+        with default $\mu=1$.  $\sigma$ is the width of each individual
+        peak (default $0.5$).  These defaults are applied automatically
+        when Bimodal is selected from the drop-down.
+\end{itemize}
+
+\textbf{Show mapping lines} (checkbox + \emph{N\,=} entry) — overlays
+$N \in [1, 100]$ L-shaped mapping lines in the main panel as described in
+Section~5.2.  Entering a value larger than 100 snaps the field back to
+100 on the next redraw.
+
+\subsection{Map Tab}
+
+Selects the transformation family (Polynomial, SLP, or RQS) and exposes
+its parameters via sliders.  \emph{Defaults} resets to the near-identity
+configuration; \emph{Randomise} draws random parameter values.
+
+For the RQS, the number of bins $K\in\{2,3,4\}$ is chosen via radio
+buttons.  The sliders expose the unconstrained logits for the bin widths,
+bin heights, and knot derivatives; the actual constrained values are
+computed via softmax and exp internally (see Section~\ref{sec:rqs}).
+All logits set to zero produce the identity transformation within the
+support $[-B,B]$.
+
+\subsection{Training Tab}
+
+\begin{itemize}
+  \item \textbf{Sample!} — draws $N$ samples from $\pz$ and displays
+        their histogram and the transformed histogram.
+  \item \textbf{Generate data} — produces $N$ exact samples from $p^*$
+        via quantile-transform sampling, for use with example-based
+        training.
+  \item \textbf{Mode} — selects Energy-based or Example-based training.
+  \item \textbf{Train!} — runs the optimiser in a background thread for
+        the specified number of epochs.  A timer animates the transformation
+        in real time at a fixed 30\,ms refresh rate.  When training finishes
+        the figure shows the \emph{best-loss} parameters encountered during
+        the run (the lowest point of the loss curve), rather than the last
+        iterate — so the final density is never worse than what was displayed
+        while training, even when the loss oscillates near convergence.
+  \item \textbf{Epochs / lr / N\,batch} — total epochs, learning rate,
+        and mini-batch size (Energy-based) or full dataset size
+        (Example-based).
+  \item \textbf{Every $n$ ep} — stride between display updates; setting
+        this to a larger value speeds up training at the cost of less
+        frequent animation.
+  \item \textbf{Post-training display.}  Sliders have finite ranges and
+        silently clamp any trained parameter that falls outside them.  To
+        prevent the displayed density from jumping after training ends, the
+        app retains the full-precision parameter vector internally and uses
+        it for all rendering as long as no slider has been manually adjusted
+        since the last training run.  Moving any slider or resetting the
+        parameters switches the display back to the slider values.
+\end{itemize}
+
+\subsection{Right-Column Panels}
+
+\begin{itemize}
+  \item \textbf{Latent $z$ histogram} — distribution of the current
+        sample / training batch in $z$-space, overlaid with the
+        theoretical $\pz$.  Its horizontal axis spans the same $z$-range as
+        the top/main/inverse-Jacobian panels.
+  \item \textbf{Transformed $x$ histogram} — same samples pushed through
+        $\ft$, overlaid with the theoretical $\px$ (and the target $p^*$
+        if \emph{Show target} is on).  Its horizontal axis spans the same
+        $x$-range as the main panel's vertical axis.  When \emph{Show
+        importance weights} is also ticked, the panel shows the
+        importance-weight overlay described in Section~\ref{sec:iw}.
+  \item \textbf{Training loss} — the total loss and its two components
+        (energy/latent and entropy/Jacobian terms), drawn in three clearly
+        distinct colours.  A fixed subsampling stride (set once at the start
+        of each run) ensures previously plotted points never shift position
+        as new epochs are added.
+\end{itemize}
+
+The density curves overlaid on both histograms (and on the side panels) are
+drawn without clipping, so their line thickness stays constant even where a
+curve meets the axis at density zero.
+
+\subsection{Importance-Weight Overlay}
+\label{sec:iw}
+
+When both \emph{Show target} and \emph{Show importance weights} (Training
+tab) are ticked and samples are present, the transformed-$x$ histogram panel
+gains a secondary $y$-axis (right, brown) that shows the
+\emph{unnormalised importance weights}
+\begin{equation}
+  w(x) \;=\; \frac{p^*(x)}{\px(x)}
+           \;=\; \frac{p^*(x)\,|\Jf(z)|}{p_z(z)},
+  \qquad z = \ft^{-1}(x).
+  \label{eq:iw}
+\end{equation}
+A dashed brown curve traces $w(x)$ over the same $x$-range as the
+density plot; a dotted reference line marks $w = 1$ (perfect agreement
+between model and target).  Where $w > 1$ the model underestimates the
+target; where $w < 1$ it overestimates it.
+
+The \textbf{effective sample size}
+\begin{equation}
+  N_{\mathrm{eff}} \;=\;
+  \frac{\left(\displaystyle\sum_{i=1}^N w_i\right)^{\!2}}
+       {\displaystyle\sum_{i=1}^N w_i^2}
+  \;\in\; (0, N],
+  \label{eq:neff}
+\end{equation}
+where $w_i = p^*(x_i)/\px(x_i)$ at the actual sample points, is shown
+alongside the \emph{mean importance weight} $\bar w = N^{-1}\sum_i w_i$
+in the panel annotation.
+
+\paragraph{Why $N_{\mathrm{eff}}$ alone is insufficient.}
+$N_{\mathrm{eff}}$ measures \emph{weight uniformity}: it equals $N$ when
+all $w_i$ are identical, regardless of their magnitude.
+In particular, \emph{mode collapse} — where $\px$ concentrates on one
+mode of a multimodal $p^*$ — produces weights that are all small but
+equal, so $N_{\mathrm{eff}} \approx N$ even though the model is far from
+the target.
+
+\paragraph{Mean weight $\bar w$ as an absolute quality indicator.}
+By the change-of-variables identity
+$\mathbb{E}_{p_x}[w(x)] = \int p^*(x)\,dx = 1$,
+the sample mean $\bar w$ should be close to $1$ for a well-fitted model.
+With mode collapse, samples land where $\px \gg p^*$, giving
+$w_i = p^*/\px \ll 1$ uniformly, so $\bar w \ll 1$.
+
+The two metrics are complementary:
+\begin{itemize}
+  \item $\bar w \approx 1$: model covers the target correctly (absolute).
+  \item $N_{\mathrm{eff}}/N \approx 100\,\%$: no single sample dominates
+        (relative).  A low value flags over-dispersion.
+\end{itemize}
+During training, both should approach their ideal values ($\bar w\to 1$,
+$N_{\mathrm{eff}}/N \to 100\,\%$) as the flow converges.
+
+\subsection{Auto-Rescale Checkbox}
+
+When ticked (default), the $z$- and $x$-axis ranges of all panels are
+recomputed on every redraw to fit the current data.  When unticked, those
+ranges are frozen at their current values, allowing close inspection of a
+particular region during training or parameter sweeps.  The density axes
+(heights of $\pz$, $|\Jf|^{-1}$, $\px$) continue to rescale freely in
+both modes.
+
+The axis ranges covered by auto-rescale are: the shared $z$-axis of the
+top/main/bottom strips; the shared $x$-axis of the main and right strips;
+the $z$-axis of the latent histogram; and the $x$-axis of the transformed
+histogram.  The transformed-histogram $x$-axis is computed explicitly from
+the union of all plotted data ranges (samples, target curve, example data)
+with 4\,\% padding, ensuring it re-fits correctly when auto-rescale is
+re-enabled after having been frozen.
+
+%% ─────────────────────────────────────────────────────────────────────────────
+\begin{thebibliography}{9}
+\bibitem{rezende2015}
+D.~J. Rezende and S.~Mohamed,
+\newblock Variational inference with normalizing flows,
+\newblock \emph{Proceedings of the 32nd International Conference on Machine
+Learning (ICML)}, PMLR 37:1530--1538, 2015.
+
+\bibitem{papamakarios2021}
+G.~Papamakarios, E.~Nalisnick, D.~J. Rezende, S.~Mohamed, and
+B.~Lakshminarayanan,
+\newblock Normalizing flows for probabilistic modeling and inference,
+\newblock \emph{Journal of Machine Learning Research} \textbf{22}(57):1--64,
+2021.
+
+\bibitem{noe2019boltzmann}
+F.~No\'e, S.~Olsson, J.~K\"ohler, and H.~Wu,
+\newblock Boltzmann generators: Sampling equilibrium states of many-body
+systems with deep learning,
+\newblock \emph{Science} \textbf{365}, eaaw1147, 2019.
+
+\bibitem{coretti2024kimreview}
+A.~Coretti, S.~Falkner, J.~Weinreich, C.~Dellago, and O.~A. von~Lilienfeld,
+\newblock Boltzmann Generators and the new frontier of computational sampling
+in many-body systems,
+\newblock \emph{KIM Review} \textbf{2}, Article 03, 2024.
+
+\bibitem{wirnsberger2020}
+P.~Wirnsberger, A.~J. Ballard, G.~Papamakarios, S.~Abercrombie,
+S.~Racani\`ere, A.~Pritzel, D.~Jimenez~Rezende, and C.~Blundell,
+\newblock Targeted free energy estimation via learned mappings,
+\newblock \emph{The Journal of Chemical Physics} \textbf{153}, 144112, 2020.
+
+\bibitem{falkner2023}
+S.~Falkner, A.~Coretti, S.~Romano, P.~L. Geissler, and C.~Dellago,
+\newblock Conditioning Boltzmann Generators for rare event sampling,
+\newblock \emph{Machine Learning: Science and Technology} \textbf{4}, 035050,
+2023.
+
+\bibitem{schebek2024}
+M.~Schebek, M.~Invernizzi, F.~No\'e, and J.~Rogal,
+\newblock Efficient mapping of phase diagrams with conditional Boltzmann
+Generators,
+\newblock \emph{Machine Learning: Science and Technology} \textbf{5}, 045045,
+2024.
+
+\bibitem{schebek2025}
+M.~Schebek, F.~No\'e, and J.~Rogal,
+\newblock Scalable Boltzmann Generators for equilibrium sampling of
+large-scale materials,
+\newblock \emph{arXiv:2509.25486}, 2025.
+
+\bibitem{coretti2025jcp}
+A.~Coretti, S.~Falkner, P.~L. Geissler, and C.~Dellago,
+\newblock Learning mappings between equilibrium states of liquid systems using
+normalizing flows,
+\newblock \emph{The Journal of Chemical Physics} \textbf{162}, 184102, 2025.
+
+\bibitem{durkan2019neural}
+C.~Durkan, A.~Bekasov, I.~Murray, and G.~Papamakarios,
+\newblock Neural spline flows,
+\newblock \emph{Advances in Neural Information Processing Systems}, 32, 2019.
+\end{thebibliography}
+
+\end{document}
