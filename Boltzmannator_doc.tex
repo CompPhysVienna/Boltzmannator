@@ -166,7 +166,7 @@ transformation $x^*(z)$ can be computed as the composition of CDFs:
 \end{equation}
 where $F_{\pz}$ and $F_{p^*}$ are the cumulative distribution functions of
 the latent and target densities, respectively.  This \emph{exact} curve is
-shown as a dashed reference line in the transformation panel.  Toggling
+shown as a solid reference line in the transformation panel.  Toggling
 \emph{Show exact transformation} does not change the displayed $z$- or
 $x$-range (the curve is simply drawn, clipped to the current axes).
 
@@ -470,14 +470,23 @@ The browser window is divided into two regions:
 \begin{itemize}
   \item \textbf{Left — control panel.}  A fixed-width panel with a header
         image and three tabs (\emph{Densities}, \emph{Map}, \emph{Training}),
-        followed by an auto-rescale checkbox and Reset / Exit buttons.  The
-        tabs are shown as a segmented control with icons; the \emph{Exit}
-        button closes the current browser session (it does not stop the
-        server for other users).
+        followed by an auto-rescale checkbox, a dark-mode switch, and
+        Reset / Exit buttons.  The tabs are shown as a segmented control with
+        icons; only the active tab's content scrolls, so the header image and
+        the bottom controls stay fixed.  The \emph{Exit} button closes the
+        current browser session (it does not stop the server for other users).
+        A small set of selector dots next to the header image lets the user
+        switch between the available portraits.
   \item \textbf{Right — figure.}  A Matplotlib figure split into two
         columns: the main four-panel display (left) and three histogram /
         loss panels (right).
 \end{itemize}
+
+\paragraph{Light and dark mode.}
+The \emph{Dark} switch toggles between a light and a dark colour theme for the
+whole interface, including the figure (backgrounds, axes, ticks, grid and
+legend recolour accordingly); the default header portrait also changes with
+the mode.  All plotted curves keep colours that remain legible in both themes.
 
 \subsection{Main Four-Panel Display}
 
@@ -503,7 +512,7 @@ mapping lines (see below) have symmetric margins on both sides.
 
 The main panel also shows the target density $p^*(x)$ (amber, when
 \emph{Show target} is ticked) and the exact transformation $x^*(z)$
-(dashed amber, when \emph{Show exact transformation} is ticked).
+(solid amber, when \emph{Show exact transformation} is ticked).
 Regions where $\Jf < 0$ are drawn in orange to flag non-invertibility.
 Enabling \emph{Show target} extends the $x$-range only if the target is
 \emph{wider} than the transformed distribution; a narrower target leaves
@@ -578,7 +587,8 @@ support $[-B,B]$.
         the figure shows the \emph{best-loss} parameters encountered during
         the run (the lowest point of the loss curve), rather than the last
         iterate — so the final density is never worse than what was displayed
-        while training, even when the loss oscillates near convergence.
+        while training, even when the loss oscillates near convergence.  The
+        completion message also reports the average compute time per epoch.
   \item \textbf{Epochs / lr / N\,batch} — total epochs, learning rate,
         and mini-batch size (Energy-based) or full dataset size
         (Example-based).
