@@ -237,20 +237,19 @@ class NormFlowApp:
 
     def _apply_fig_theme(self):
         """Recolour the matplotlib figure for the current mode.  Called at the
-        end of every redraw.  Light mode keeps the original look; dark mode
-        repaints backgrounds, text, spines, grid and legend."""
+        end of every redraw.  Colours are set explicitly for BOTH modes (not
+        just dark) so that switching dark->light restores the original
+        light-mode appearance rather than leaving the dark colours behind."""
         dark = self._dark
-        bg = "#23232a" if dark else "white"
+        bg      = "#23232a" if dark else "white"
+        fg      = "#e6e6e6" if dark else "black"      # text / ticks / spines
+        grid_c  = "#5a5a66" if dark else "#b0b0b0"    # matplotlib default grey
         main_axes = [self.ax_top, self.ax_main, self.ax_logj, self.ax_right,
                      self.ax_hist_z, self.ax_hist_x, self.ax_loss]
         self.fig.patch.set_facecolor(bg)
         self.ax_hist_x_twin.set_facecolor("none")   # keep twin transparent
         for ax in main_axes:
             ax.set_facecolor(bg)
-        if not dark:
-            return
-        fg = "#e6e6e6"
-        for ax in main_axes:
             ax.title.set_color(fg)
             ax.xaxis.label.set_color(fg)
             ax.yaxis.label.set_color(fg)
@@ -258,7 +257,7 @@ class NormFlowApp:
             for s in ax.spines.values():
                 s.set_color(fg)
             for gl in ax.get_xgridlines() + ax.get_ygridlines():
-                gl.set_color(fg)
+                gl.set_color(grid_c)
             leg = ax.get_legend()
             if leg is not None:
                 for t in leg.get_texts():
