@@ -117,3 +117,14 @@ training runs the host's CPU can get busy.
   pip install pywebview
   python Boltzmannator.py
   ```
+
+---
+
+## License & credits
+
+Released under the **MIT License** (see `LICENSE`), Copyright (c) 2026
+Christoph Dellago.
+
+The header images are derived from a public-domain 1902 photograph of Ludwig
+Boltzmann ([Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Boltzmann2.jpg));
+see `CREDITS.md`.
