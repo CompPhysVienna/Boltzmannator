@@ -353,6 +353,8 @@ class NormFlowApp:
         /* in dark mode, fill the plot panel's letterbox margin with the same
            grey as the figure background so there is no black border */
         .body--dark .plotpanel { background: #23232a !important; }
+        /* keep the footer muted in dark mode (override the blanket text rule) */
+        .body--dark .ctrl .appfooter { color: #888 !important; }
         """)
         # Dark-mode controller (starts in light mode).
         self._dark_mode = ui.dark_mode()
@@ -731,6 +733,10 @@ class NormFlowApp:
                         self._btn("Exit", "logout",
                                   "grey-9", self._exit_app,
                                   tooltip="Close this session")
+                    ui.label("© 2026 Christoph Dellago").classes(
+                        "appfooter").style(
+                        "width:100%; text-align:center; font-size:10px; "
+                        "color:#888; margin-top:2px")
 
             # ── Right matplotlib panel ────────────────────────────────────
             with ui.column().classes("flex-grow plotpanel").style(
