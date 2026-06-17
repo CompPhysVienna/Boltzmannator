@@ -205,6 +205,12 @@ class NormFlowApp:
         for j, dot in enumerate(self._pic_dots):
             dot.style(replace=self._pic_dot_style(j == i))
 
+    def _default_pic_index(self):
+        """Default header picture per mode: the plain Boltzmann portrait
+        (Boltzmann.png, index 2) in dark mode, the terminator-glasses portrait
+        (Boltzmannator_title.png, index 0) in light mode."""
+        return 2 if self._dark else 0
+
     # ── Dark / light mode ─────────────────────────────────────────────────────
 
     def _prog_color(self, kind=None):
@@ -233,6 +239,9 @@ class NormFlowApp:
         # re-apply the progress text colour for the new mode, preserving its
         # meaning (a finished "Done" message stays green, etc.)
         self._set_prog_kind(self._prog_kind)
+        # switch the header picture to this mode's default
+        if hasattr(self, "_header_img"):
+            self._choose_pic(self._default_pic_index())
         self._request_render()      # repaint the figure with the new theme
 
     def _apply_fig_theme(self):
@@ -341,9 +350,9 @@ class NormFlowApp:
                 "height:100vh; gap:0; overflow:hidden"):
 
             # ── Left control panel ────────────────────────────────────────
-            with ui.scroll_area().classes("ctrl").style(
-                    "width:340px; min-width:340px; height:100vh; "
-                    "background:#f0f0f0; padding:4px"):
+            with ui.column().classes("ctrl no-wrap").style(
+                    "width:340px; min-width:340px; height:100vh; gap:4px; "
+                    "background:#f0f0f0; padding:4px; overflow:hidden"):
 
                 # Header image with three small circles (overlaid in the
                 # corner, so they cost no extra vertical space) to choose the
@@ -356,13 +365,14 @@ class NormFlowApp:
                     with ui.row().classes("no-wrap").style(
                             "width:100%; justify-content:center; "
                             "align-items:center; gap:8px; margin:0 auto 4px"):
+                        _def = self._default_pic_index()
                         self._header_img = ui.image(
-                            f"/static/{self._pic_files[0]}").style(
+                            f"/static/{self._pic_files[_def]}").style(
                             "width:230px; display:block")
                         with ui.column().style("gap:7px"):
                             for i in range(len(self._pic_files)):
                                 dot = ui.element("div").classes("cursor-pointer")
-                                dot.style(self._pic_dot_style(i == 0))
+                                dot.style(self._pic_dot_style(i == _def))
                                 dot.on("click", lambda e, i=i: self._choose_pic(i))
                                 self._pic_dots.append(dot)
                 except Exception:
@@ -398,283 +408,284 @@ class NormFlowApp:
                                 '<span>Training</span>').style(
                             "display:inline-flex;align-items:center")
 
-                with ui.tab_panels(tabs, value=t_dist).classes("w-full"):
+                with ui.scroll_area().classes("w-full").style("flex:1 1 0; min-height:0"):
+                    with ui.tab_panels(tabs, value=t_dist).classes("w-full"):
 
-                    # ── Densities tab ─────────────────────────────────────
-                    with ui.tab_panel(t_dist):
-                        ui.html("Latent p<sub>z</sub>(z)").style(
-                            "font-weight:bold; font-size:13px; margin-top:4px")
-                        self._dist_select = ui.select(
-                            ["Gaussian", "Uniform", "Laplace", "Bimodal"],
-                            value="Gaussian",
-                            on_change=lambda e: self._on_dist_change(e.value),
-                        ).classes("w-full").props("dense")
+                        # ── Densities tab ─────────────────────────────────────
+                        with ui.tab_panel(t_dist):
+                            ui.html("Latent p<sub>z</sub>(z)").style(
+                                "font-weight:bold; font-size:13px; margin-top:4px")
+                            self._dist_select = ui.select(
+                                ["Gaussian", "Uniform", "Laplace", "Bimodal"],
+                                value="Gaussian",
+                                on_change=lambda e: self._on_dist_change(e.value),
+                            ).classes("w-full").props("dense")
 
-                        for spec in self.GAUSSIAN_SLIDERS:
-                            self._add_slider(*spec)
-
-                        ui.separator()
-                        ui.html("Target p<sup>*</sup>(x)").style(
-                            "font-weight:bold; font-size:13px")
-                        ui.html(
-                            "p<sup>*</sup>(x) ∝ exp(−U(x)/kT),  "
-                            "U = u₁x+u₂x²+u₃x³+u₄x⁴"
-                        ).style("font-size:13px; color:#555; font-style:italic")
-
-                        self._show_target_cb = ui.checkbox(
-                            "Show target", value=False,
-                            on_change=lambda e: self._cb_change(
-                                "_show_target_val", e.value, rescale=True))
-                        self._show_exact_cb = ui.checkbox(
-                            "Show exact transformation", value=False,
-                            on_change=lambda e: self._cb_change(
-                                "_show_exact_val", e.value, rescale=True))
-
-                        self._add_slider("kT", "kT",  0.1, 3.0, 1.0, 0.05)
-                        self._add_slider("u₁", "u1", -2.0, 2.0, 0.0, 0.10)
-                        self._add_slider("u₂", "u2", -2.0, 2.0, 1.0, 0.10)
-                        self._add_slider("u₃", "u3", -1.0, 1.0, 0.0, 0.05)
-                        self._add_slider("u₄", "u4",  0.05, 1.5, 0.1, 0.05)
-
-                        ui.separator()
-                        with ui.row().classes("items-center gap-2 w-full"):
-                            self._show_map_cb = ui.checkbox(
-                                "Show mapping lines", value=False,
-                                on_change=lambda e: self._cb_change(
-                                    "_show_map_lines_val", e.value))
-                            ui.label("N =").style("font-size:13px")
-                            self._n_map_input = (
-                                ui.input(value="10")
-                                .style("width:50px")
-                                .props("dense")
-                            )
-                            self._n_map_input.on(
-                                "change", lambda _: self._request_render())
-
-                    # ── Map tab ───────────────────────────────────────────
-                    with ui.tab_panel(t_map).classes("maptab"):
-                        ui.html("Transformation f<sub>θ</sub>(z)").style(
-                            "font-weight:bold; font-size:13px; margin-top:4px")
-                        self._transform_select = ui.select(
-                            ["Polynomial",
-                             "Single layer perceptron",
-                             "Rational-quadratic spline"],
-                            value="Single layer perceptron",
-                            on_change=lambda e: self._on_transform_change(e.value),
-                        ).classes("w-full").props("dense")
-
-                        # Polynomial
-                        with ui.column().classes("w-full gap-0") as self._poly_section:
-                            ui.label("x = θ₀+θ₁z+θ₂z²+θ₃z³").style(
-                                "font-size:13px; color:#555; font-style:italic")
-                            for spec in self.TRANSFORM_SLIDERS:
+                            for spec in self.GAUSSIAN_SLIDERS:
                                 self._add_slider(*spec)
 
-                        # Single layer perceptron
-                        with ui.column().classes("w-full gap-0") as self._sig_section:
-                            ui.label("x = a + bz + Σwₖσ((z−cₖ)/sₖ)").style(
-                                "font-size:13px; color:#555; font-style:italic")
-                            with ui.row().classes("items-center gap-1"):
-                                ui.label("K =").style("font-size:13px")
-                                self._k_radio = ui.radio(
-                                    {1: "1", 2: "2", 3: "3", 4: "4",
-                                     5: "5", 6: "6", 7: "7", 8: "8"},
-                                    value=3,
-                                    on_change=lambda e: self._on_K_change(int(e.value)),
-                                ).props("inline dense")
-                            K_MAX = 8
-                            defaults_c = [-2.5, -1.79, -1.07, -0.36,
-                                          0.36, 1.07, 1.79, 2.5]
-                            _grp = ("font-size:13px; font-style:italic; "
-                                    "color:#666; margin-top:9px")
-
-                            # Group: a, b (linear part)
-                            with ui.column().classes("w-full gap-0"):
-                                self._add_slider("a", "sig_off",   -3.0, 3.0, 0.0, 0.05)
-                                self._add_slider("b", "sig_slope", -3.0, 3.0, 1.0, 0.05)
-
-                            # Group: weights wₖ
-                            ui.label("weights  wₖ").style(_grp)
-                            self._sig_w_rows = []
-                            for k in range(K_MAX):
-                                with ui.column().classes("w-full gap-0") as r:
-                                    self._add_slider(
-                                        f"w{k+1}", f"w{k}", 0.01, 3.0, 0.01, 0.05)
-                                self._sig_w_rows.append(r)
-
-                            # Group: centres cₖ
-                            ui.label("centres  cₖ").style(_grp)
-                            self._sig_c_rows = []
-                            for k in range(K_MAX):
-                                with ui.column().classes("w-full gap-0") as r:
-                                    self._add_slider(
-                                        f"c{k+1}", f"c{k}", -4.0, 4.0,
-                                        defaults_c[k], 0.1)
-                                self._sig_c_rows.append(r)
-
-                            # Group: scales sₖ
-                            ui.label("scales  sₖ").style(_grp)
-                            self._sig_s_rows = []
-                            for k in range(K_MAX):
-                                with ui.column().classes("w-full gap-0") as r:
-                                    self._add_slider(
-                                        f"s{k+1}", f"s{k}", 0.05, 3.0, 1.0, 0.05)
-                                self._sig_s_rows.append(r)
-
-                        # Rational-quadratic spline
-                        with ui.column().classes("w-full gap-0") as self._rqs_section:
-                            ui.label(
-                                "Monotone spline on [−B, B], linear outside"
+                            ui.separator()
+                            ui.html("Target p<sup>*</sup>(x)").style(
+                                "font-weight:bold; font-size:13px")
+                            ui.html(
+                                "p<sup>*</sup>(x) ∝ exp(−U(x)/kT),  "
+                                "U = u₁x+u₂x²+u₃x³+u₄x⁴"
                             ).style("font-size:13px; color:#555; font-style:italic")
-                            with ui.row().classes("items-center gap-1"):
-                                ui.label("K =").style("font-size:13px")
-                                self._k_rqs_radio = ui.radio(
-                                    {2: "2", 3: "3", 4: "4"},
-                                    value=3,
-                                    on_change=lambda e: self._on_K_rqs_change(
-                                        int(e.value)),
-                                ).props("inline dense")
-                            self._add_slider("B", "rqs_B", 1.0, 6.0, 3.0, 0.1)
-                            K_MAX_RQS = 4
-                            ui.label("Bin widths").style(
-                                "font-size:13px; font-style:italic; color:#666")
-                            self._rqs_w_rows = []
-                            for k in range(K_MAX_RQS):
-                                with ui.column().classes("w-full gap-0") as r:
-                                    self._add_slider(
-                                        f"w{k+1}", f"rqs_w{k}", -3.0, 3.0, 0.0, 0.05)
-                                self._rqs_w_rows.append(r)
-                            ui.label("Bin heights").style(
-                                "font-size:13px; font-style:italic; color:#666")
-                            self._rqs_h_rows = []
-                            for k in range(K_MAX_RQS):
-                                with ui.column().classes("w-full gap-0") as r:
-                                    self._add_slider(
-                                        f"h{k+1}", f"rqs_h{k}", -3.0, 3.0, 0.0, 0.05)
-                                self._rqs_h_rows.append(r)
-                            ui.label("Knot derivatives").style(
-                                "font-size:13px; font-style:italic; color:#666")
-                            self._rqs_d_rows = []
-                            for k in range(K_MAX_RQS + 1):
-                                with ui.column().classes("w-full gap-0") as r:
-                                    self._add_slider(
-                                        f"d{k}", f"rqs_d{k}", -3.0, 3.0, 0.0, 0.05)
-                                self._rqs_d_rows.append(r)
 
-                        ui.separator()
-                        with ui.row().classes("gap-2 w-full no-wrap"):
-                            self._btn("Defaults", "settings_backup_restore",
-                                      "blue-grey-6", self._reset_map_params,
-                                      tooltip="Reset the transformation "
-                                              "parameters to their defaults")
-                            self._btn("Randomize", "shuffle",
-                                      "deep-purple-5", self._randomize_map_params,
-                                      tooltip="Set random transformation "
-                                              "parameters")
+                            self._show_target_cb = ui.checkbox(
+                                "Show target", value=False,
+                                on_change=lambda e: self._cb_change(
+                                    "_show_target_val", e.value, rescale=True))
+                            self._show_exact_cb = ui.checkbox(
+                                "Show exact transformation", value=False,
+                                on_change=lambda e: self._cb_change(
+                                    "_show_exact_val", e.value, rescale=True))
 
-                    # ── Training tab ──────────────────────────────────────
-                    with ui.tab_panel(t_train).classes("traintab"):
-                        ui.label("Sampling").style(
-                            "font-weight:bold; font-size:13px; margin-top:4px")
-                        with ui.row().classes("items-center gap-2"):
-                            ui.label("N =").style("font-size:13px")
-                            self._n_entry_input = (
-                                ui.input(value="1000")
-                                .style("width:80px").props("dense"))
-                        with ui.row().classes("gap-2 w-full no-wrap"):
-                            self._btn("Sample!", "casino",
-                                      "primary", self._do_sampling,
-                                      tooltip="Draw N samples from the latent "
-                                              "distribution and push them "
-                                              "through the transformation")
-                            self._btn("Data", "scatter_plot",
-                                      "teal-7", self._do_generate_data,
-                                      tooltip="Generate N example data points "
-                                              "from the target distribution")
-                        self._show_data_cb = ui.checkbox(
-                            "Show target data", value=True,
-                            on_change=lambda e: self._cb_change(
-                                "_show_data_val", e.value))
-                        self._show_iw_cb = ui.checkbox(
-                            "Show importance weights", value=False,
-                            on_change=lambda e: self._cb_change(
-                                "_show_iw_val", e.value))
+                            self._add_slider("kT", "kT",  0.1, 3.0, 1.0, 0.05)
+                            self._add_slider("u₁", "u1", -2.0, 2.0, 0.0, 0.10)
+                            self._add_slider("u₂", "u2", -2.0, 2.0, 1.0, 0.10)
+                            self._add_slider("u₃", "u3", -1.0, 1.0, 0.0, 0.05)
+                            self._add_slider("u₄", "u4",  0.05, 1.5, 0.1, 0.05)
 
-                        ui.separator()
-                        ui.label("Training").style(
-                            "font-weight:bold; font-size:13px")
-                        self._mode_radio = ui.radio(
-                            {"Energy-based": "Energy-based",
-                             "Example-based": "Example-based"},
-                            value="Energy-based",
-                            on_change=lambda e: setattr(
-                                self, "_train_mode_val", e.value),
-                        ).props("inline dense")
-                        self._opt_select = ui.select(
-                            ["Adam", "SGD", "SGD+momentum", "RMSprop"],
-                            value="Adam",
-                            on_change=lambda e: setattr(
-                                self, "_optimizer_val", e.value),
-                        ).classes("w-full").props("dense")
+                            ui.separator()
+                            with ui.row().classes("items-center gap-2 w-full"):
+                                self._show_map_cb = ui.checkbox(
+                                    "Show mapping lines", value=False,
+                                    on_change=lambda e: self._cb_change(
+                                        "_show_map_lines_val", e.value))
+                                ui.label("N =").style("font-size:13px")
+                                self._n_map_input = (
+                                    ui.input(value="10")
+                                    .style("width:50px")
+                                    .props("dense")
+                                )
+                                self._n_map_input.on(
+                                    "change", lambda _: self._request_render())
 
-                        with ui.row().classes("items-center gap-2"):
-                            ui.label("Epochs =").style("font-size:13px")
-                            self._n_epochs_input = (
-                                ui.input(value="500")
-                                .style("width:70px").props("dense"))
-                            ui.label("lr =").style("font-size:13px")
-                            self._lr_input = (
-                                ui.input(value="0.01")
-                                .style("width:70px").props("dense"))
-                        with ui.row().classes("items-center gap-2"):
-                            ui.label("N batch =").style("font-size:13px")
-                            self._n_batch_input = (
-                                ui.input(value="1000")
-                                .style("width:70px").props("dense"))
-                            self._resample_cb = ui.checkbox(
-                                "resample", value=True,
+                        # ── Map tab ───────────────────────────────────────────
+                        with ui.tab_panel(t_map).classes("maptab"):
+                            ui.html("Transformation f<sub>θ</sub>(z)").style(
+                                "font-weight:bold; font-size:13px; margin-top:4px")
+                            self._transform_select = ui.select(
+                                ["Polynomial",
+                                 "Single layer perceptron",
+                                 "Rational-quadratic spline"],
+                                value="Single layer perceptron",
+                                on_change=lambda e: self._on_transform_change(e.value),
+                            ).classes("w-full").props("dense")
+
+                            # Polynomial
+                            with ui.column().classes("w-full gap-0") as self._poly_section:
+                                ui.label("x = θ₀+θ₁z+θ₂z²+θ₃z³").style(
+                                    "font-size:13px; color:#555; font-style:italic")
+                                for spec in self.TRANSFORM_SLIDERS:
+                                    self._add_slider(*spec)
+
+                            # Single layer perceptron
+                            with ui.column().classes("w-full gap-0") as self._sig_section:
+                                ui.label("x = a + bz + Σwₖσ((z−cₖ)/sₖ)").style(
+                                    "font-size:13px; color:#555; font-style:italic")
+                                with ui.row().classes("items-center gap-1"):
+                                    ui.label("K =").style("font-size:13px")
+                                    self._k_radio = ui.radio(
+                                        {1: "1", 2: "2", 3: "3", 4: "4",
+                                         5: "5", 6: "6", 7: "7", 8: "8"},
+                                        value=3,
+                                        on_change=lambda e: self._on_K_change(int(e.value)),
+                                    ).props("inline dense")
+                                K_MAX = 8
+                                defaults_c = [-2.5, -1.79, -1.07, -0.36,
+                                              0.36, 1.07, 1.79, 2.5]
+                                _grp = ("font-size:13px; font-style:italic; "
+                                        "color:#666; margin-top:9px")
+
+                                # Group: a, b (linear part)
+                                with ui.column().classes("w-full gap-0"):
+                                    self._add_slider("a", "sig_off",   -3.0, 3.0, 0.0, 0.05)
+                                    self._add_slider("b", "sig_slope", -3.0, 3.0, 1.0, 0.05)
+
+                                # Group: weights wₖ
+                                ui.label("weights  wₖ").style(_grp)
+                                self._sig_w_rows = []
+                                for k in range(K_MAX):
+                                    with ui.column().classes("w-full gap-0") as r:
+                                        self._add_slider(
+                                            f"w{k+1}", f"w{k}", 0.01, 3.0, 0.01, 0.05)
+                                    self._sig_w_rows.append(r)
+
+                                # Group: centres cₖ
+                                ui.label("centres  cₖ").style(_grp)
+                                self._sig_c_rows = []
+                                for k in range(K_MAX):
+                                    with ui.column().classes("w-full gap-0") as r:
+                                        self._add_slider(
+                                            f"c{k+1}", f"c{k}", -4.0, 4.0,
+                                            defaults_c[k], 0.1)
+                                    self._sig_c_rows.append(r)
+
+                                # Group: scales sₖ
+                                ui.label("scales  sₖ").style(_grp)
+                                self._sig_s_rows = []
+                                for k in range(K_MAX):
+                                    with ui.column().classes("w-full gap-0") as r:
+                                        self._add_slider(
+                                            f"s{k+1}", f"s{k}", 0.05, 3.0, 1.0, 0.05)
+                                    self._sig_s_rows.append(r)
+
+                            # Rational-quadratic spline
+                            with ui.column().classes("w-full gap-0") as self._rqs_section:
+                                ui.label(
+                                    "Monotone spline on [−B, B], linear outside"
+                                ).style("font-size:13px; color:#555; font-style:italic")
+                                with ui.row().classes("items-center gap-1"):
+                                    ui.label("K =").style("font-size:13px")
+                                    self._k_rqs_radio = ui.radio(
+                                        {2: "2", 3: "3", 4: "4"},
+                                        value=3,
+                                        on_change=lambda e: self._on_K_rqs_change(
+                                            int(e.value)),
+                                    ).props("inline dense")
+                                self._add_slider("B", "rqs_B", 1.0, 6.0, 3.0, 0.1)
+                                K_MAX_RQS = 4
+                                ui.label("Bin widths").style(
+                                    "font-size:13px; font-style:italic; color:#666")
+                                self._rqs_w_rows = []
+                                for k in range(K_MAX_RQS):
+                                    with ui.column().classes("w-full gap-0") as r:
+                                        self._add_slider(
+                                            f"w{k+1}", f"rqs_w{k}", -3.0, 3.0, 0.0, 0.05)
+                                    self._rqs_w_rows.append(r)
+                                ui.label("Bin heights").style(
+                                    "font-size:13px; font-style:italic; color:#666")
+                                self._rqs_h_rows = []
+                                for k in range(K_MAX_RQS):
+                                    with ui.column().classes("w-full gap-0") as r:
+                                        self._add_slider(
+                                            f"h{k+1}", f"rqs_h{k}", -3.0, 3.0, 0.0, 0.05)
+                                    self._rqs_h_rows.append(r)
+                                ui.label("Knot derivatives").style(
+                                    "font-size:13px; font-style:italic; color:#666")
+                                self._rqs_d_rows = []
+                                for k in range(K_MAX_RQS + 1):
+                                    with ui.column().classes("w-full gap-0") as r:
+                                        self._add_slider(
+                                            f"d{k}", f"rqs_d{k}", -3.0, 3.0, 0.0, 0.05)
+                                    self._rqs_d_rows.append(r)
+
+                            ui.separator()
+                            with ui.row().classes("gap-2 w-full no-wrap"):
+                                self._btn("Defaults", "settings_backup_restore",
+                                          "blue-grey-6", self._reset_map_params,
+                                          tooltip="Reset the transformation "
+                                                  "parameters to their defaults")
+                                self._btn("Randomize", "shuffle",
+                                          "deep-purple-5", self._randomize_map_params,
+                                          tooltip="Set random transformation "
+                                                  "parameters")
+
+                        # ── Training tab ──────────────────────────────────────
+                        with ui.tab_panel(t_train).classes("traintab"):
+                            ui.label("Sampling").style(
+                                "font-weight:bold; font-size:13px; margin-top:4px")
+                            with ui.row().classes("items-center gap-2"):
+                                ui.label("N =").style("font-size:13px")
+                                self._n_entry_input = (
+                                    ui.input(value="1000")
+                                    .style("width:80px").props("dense"))
+                            with ui.row().classes("gap-2 w-full no-wrap"):
+                                self._btn("Sample!", "casino",
+                                          "primary", self._do_sampling,
+                                          tooltip="Draw N samples from the latent "
+                                                  "distribution and push them "
+                                                  "through the transformation")
+                                self._btn("Data", "scatter_plot",
+                                          "teal-7", self._do_generate_data,
+                                          tooltip="Generate N example data points "
+                                                  "from the target distribution")
+                            self._show_data_cb = ui.checkbox(
+                                "Show target data", value=True,
+                                on_change=lambda e: self._cb_change(
+                                    "_show_data_val", e.value))
+                            self._show_iw_cb = ui.checkbox(
+                                "Show importance weights", value=False,
+                                on_change=lambda e: self._cb_change(
+                                    "_show_iw_val", e.value))
+
+                            ui.separator()
+                            ui.label("Training").style(
+                                "font-weight:bold; font-size:13px")
+                            self._mode_radio = ui.radio(
+                                {"Energy-based": "Energy-based",
+                                 "Example-based": "Example-based"},
+                                value="Energy-based",
                                 on_change=lambda e: setattr(
-                                    self, "_resample_val", e.value))
-                        with ui.row().classes("items-center gap-2 w-full no-wrap"):
-                            ui.label("Every =").style("font-size:13px")
-                            self._stride_input = (
-                                ui.input(value="10")
-                                .style("width:50px").props("dense"))
-                            ui.label("epochs").style("font-size:13px")
-                            ui.space()
-                            ui.label("Delay =").style("font-size:13px")
-                            self._delay_input = (
-                                ui.input(value="20")
-                                .style("width:55px").props("dense"))
-                            ui.label("ms").style("font-size:13px")
+                                    self, "_train_mode_val", e.value),
+                            ).props("inline dense")
+                            self._opt_select = ui.select(
+                                ["Adam", "SGD", "SGD+momentum", "RMSprop"],
+                                value="Adam",
+                                on_change=lambda e: setattr(
+                                    self, "_optimizer_val", e.value),
+                            ).classes("w-full").props("dense")
 
-                        with ui.row().classes("gap-2 w-full no-wrap"):
-                            self._btn("Train!", "rocket_launch",
-                                      "positive", self._do_training,
-                                      tooltip="Optimise the transformation "
-                                              "parameters")
-                            self._btn("Stop", "stop",
-                                      "negative", self._stop_training,
-                                      tooltip="Stop the running training")
+                            with ui.row().classes("items-center gap-2"):
+                                ui.label("Epochs =").style("font-size:13px")
+                                self._n_epochs_input = (
+                                    ui.input(value="500")
+                                    .style("width:70px").props("dense"))
+                                ui.label("lr =").style("font-size:13px")
+                                self._lr_input = (
+                                    ui.input(value="0.01")
+                                    .style("width:70px").props("dense"))
+                            with ui.row().classes("items-center gap-2"):
+                                ui.label("N batch =").style("font-size:13px")
+                                self._n_batch_input = (
+                                    ui.input(value="1000")
+                                    .style("width:70px").props("dense"))
+                                self._resample_cb = ui.checkbox(
+                                    "resample", value=True,
+                                    on_change=lambda e: setattr(
+                                        self, "_resample_val", e.value))
+                            with ui.row().classes("items-center gap-2 w-full no-wrap"):
+                                ui.label("Every =").style("font-size:13px")
+                                self._stride_input = (
+                                    ui.input(value="10")
+                                    .style("width:50px").props("dense"))
+                                ui.label("epochs").style("font-size:13px")
+                                ui.space()
+                                ui.label("Delay =").style("font-size:13px")
+                                self._delay_input = (
+                                    ui.input(value="20")
+                                    .style("width:55px").props("dense"))
+                                ui.label("ms").style("font-size:13px")
 
-                        self._prog_bar = (
-                            ui.linear_progress(value=0, show_value=False,
-                                               size="20px")
-                            .classes("w-full")
-                            .props("instant-feedback color=positive rounded"))
-                        with self._prog_bar:
-                            self._prog_epoch = ui.label("0 / 0").classes(
-                                "absolute-center").style(
-                                "font-size:13px; font-weight:600; color:#fff; "
-                                "text-shadow:0 0 2px rgba(0,0,0,.55)")
-                        self._prog_label = ui.label("").style(
-                            "font-size:13px; color:#222; "
-                            "text-align:center; white-space:pre")
+                            with ui.row().classes("gap-2 w-full no-wrap"):
+                                self._btn("Train!", "rocket_launch",
+                                          "positive", self._do_training,
+                                          tooltip="Optimise the transformation "
+                                                  "parameters")
+                                self._btn("Stop", "stop",
+                                          "negative", self._stop_training,
+                                          tooltip="Stop the running training")
 
-                        self._btn("Reset training", "refresh",
-                                  "orange-8", self._reset_training, full=True,
-                                  tooltip="Clear loss history and reset the "
-                                          "transformation to the identity")
+                            self._prog_bar = (
+                                ui.linear_progress(value=0, show_value=False,
+                                                   size="20px")
+                                .classes("w-full")
+                                .props("instant-feedback color=positive rounded"))
+                            with self._prog_bar:
+                                self._prog_epoch = ui.label("0 / 0").classes(
+                                    "absolute-center").style(
+                                    "font-size:13px; font-weight:600; color:#fff; "
+                                    "text-shadow:0 0 2px rgba(0,0,0,.55)")
+                            self._prog_label = ui.label("").style(
+                                "font-size:13px; color:#222; "
+                                "text-align:center; white-space:pre")
+
+                            self._btn("Reset training", "refresh",
+                                      "orange-8", self._reset_training, full=True,
+                                      tooltip="Clear loss history and reset the "
+                                              "transformation to the identity")
 
                 # ── Always-visible controls ───────────────────────────────
                 ui.separator()
