@@ -181,6 +181,8 @@ class NormFlowApp:
         self._training_was_active: bool = False
         self._train_status: tuple | None = None   # (text, color) from thread
         self._epoch_time_us: float = 0.0
+        self._dark: bool = False                   # dark-mode flag
+        self._prog_kind: str = "neutral"           # neutral | done | error
 
         self._build_ui()
         self._on_transform_change()
@@ -202,6 +204,65 @@ class NormFlowApp:
         self._header_img.set_source(f"/static/{self._pic_files[i]}")
         for j, dot in enumerate(self._pic_dots):
             dot.style(replace=self._pic_dot_style(j == i))
+
+    # ── Dark / light mode ─────────────────────────────────────────────────────
+
+    def _prog_color(self, kind=None):
+        """Theme-aware colour for the progress text by semantic kind:
+        neutral (live), done (success), error.  Brighter variants in dark."""
+        kind = kind or self._prog_kind
+        if kind == "done":
+            return "#66BB6A" if self._dark else "#1B5E20"
+        if kind == "error":
+            return "#EF5350" if self._dark else "#B71C1C"
+        return "#e6e6e6" if self._dark else "#222222"      # neutral
+
+    def _set_prog_kind(self, kind):
+        """Remember what the progress text represents and (re)apply its colour
+        for the current mode."""
+        self._prog_kind = kind
+        if hasattr(self, "_prog_label"):
+            self._prog_label.style(f"color:{self._prog_color()} !important")
+
+    def _toggle_dark(self, value):
+        self._dark = bool(value)
+        if self._dark:
+            self._dark_mode.enable()
+        else:
+            self._dark_mode.disable()
+        # re-apply the progress text colour for the new mode, preserving its
+        # meaning (a finished "Done" message stays green, etc.)
+        self._set_prog_kind(self._prog_kind)
+        self._request_render()      # repaint the figure with the new theme
+
+    def _apply_fig_theme(self):
+        """Recolour the matplotlib figure for the current mode.  Called at the
+        end of every redraw.  Light mode keeps the original look; dark mode
+        repaints backgrounds, text, spines, grid and legend."""
+        dark = self._dark
+        bg = "#23232a" if dark else "white"
+        main_axes = [self.ax_top, self.ax_main, self.ax_logj, self.ax_right,
+                     self.ax_hist_z, self.ax_hist_x, self.ax_loss]
+        self.fig.patch.set_facecolor(bg)
+        self.ax_hist_x_twin.set_facecolor("none")   # keep twin transparent
+        for ax in main_axes:
+            ax.set_facecolor(bg)
+        if not dark:
+            return
+        fg = "#e6e6e6"
+        for ax in main_axes:
+            ax.title.set_color(fg)
+            ax.xaxis.label.set_color(fg)
+            ax.yaxis.label.set_color(fg)
+            ax.tick_params(axis="both", colors=fg)
+            for s in ax.spines.values():
+                s.set_color(fg)
+            for gl in ax.get_xgridlines() + ax.get_ygridlines():
+                gl.set_color(fg)
+            leg = ax.get_legend()
+            if leg is not None:
+                for t in leg.get_texts():
+                    t.set_color(fg)
 
     def _build_ui(self):
         # Per-page CSS — each browser gets its own page, so this is added per
@@ -263,7 +324,19 @@ class NormFlowApp:
         .ctrl .q-tab__indicator { display: none !important; }
         .ctrl .q-tab .q-icon { font-size: 18px !important; }
         .ctrl .q-linear-progress { margin: 2px 0 !important; }
+
+        /* ── Dark mode (Quasar adds body.body--dark) ── */
+        .body--dark .ctrl { background: #26262b !important; }
+        .body--dark .ctrl .q-tabs { background: #3a3a42 !important; }
+        /* make every text element in the panel legible on the dark bg;
+           progress-status colours are set inline with !important so they win */
+        .body--dark .ctrl * { color: #e2e2e2 !important; }
+        /* keep the progress-bar fill green (the rule above would grey it) */
+        .body--dark .ctrl .q-linear-progress__model {
+            background: #21BA45 !important; color: #21BA45 !important; }
         """)
+        # Dark-mode controller (starts in light mode).
+        self._dark_mode = ui.dark_mode()
 
         with ui.row().classes("w-full no-wrap").style(
                 "height:100vh; gap:0; overflow:hidden"):
@@ -606,10 +679,16 @@ class NormFlowApp:
 
                 # ── Always-visible controls ───────────────────────────────
                 ui.separator()
-                self._rescale_cb = ui.checkbox(
-                    "Auto-rescale x / z axes", value=True,
-                    on_change=lambda e: self._cb_change(
-                        "_rescale_axes_val", e.value))
+                with ui.row().classes("items-center gap-2 w-full no-wrap"):
+                    self._rescale_cb = ui.checkbox(
+                        "Auto-rescale x / z axes", value=True,
+                        on_change=lambda e: self._cb_change(
+                            "_rescale_axes_val", e.value))
+                    ui.space()
+                    self._dark_switch = ui.switch(
+                        "Dark", value=False,
+                        on_change=lambda e: self._toggle_dark(e.value)
+                    ).props("dense").tooltip("Toggle dark / light mode")
                 ui.separator()
                 with ui.row().classes("gap-2 w-full no-wrap"):
                     self._btn("Reset", "restart_alt",
@@ -865,7 +944,7 @@ class NormFlowApp:
         if hasattr(self, "_prog_bar"):   self._prog_bar.value = 0.0
         if hasattr(self, "_prog_epoch"): self._prog_epoch.text = "0 / 0"
         if hasattr(self, "_prog_label"):
-            self._prog_label.text = ""; self._prog_label.style("color:#222")
+            self._prog_label.text = ""; self._set_prog_kind("neutral")
         self._refresh_value_labels()
         self._request_render()
 
@@ -888,7 +967,7 @@ class NormFlowApp:
         if hasattr(self, "_prog_bar"):   self._prog_bar.value = 0.0
         if hasattr(self, "_prog_epoch"): self._prog_epoch.text = "0 / 0"
         if hasattr(self, "_prog_label"):
-            self._prog_label.text = ""; self._prog_label.style("color:#222")
+            self._prog_label.text = ""; self._set_prog_kind("neutral")
         ttype = self.transform_val
         self._suppress_redraw = True
         try:
@@ -1247,7 +1326,7 @@ class NormFlowApp:
                         # Drawn clipped to the current axes — it must not
                         # change the z/x range (see range note below).
                         ax_main.plot(z, x_star, color=self.CT_TARGET, lw=1.6,
-                                     ls="--", zorder=6, label="exact")
+                                     ls="-", zorder=6, label="exact")
             except Exception:
                 pass
 
@@ -1424,6 +1503,8 @@ class NormFlowApp:
                 except Exception:
                     pass
         else:
+            _ph_fc = "#3a3a42" if self._dark else "#f5f5f5"
+            _ph_ec = "#555"    if self._dark else "#ccc"
             empty_axes = [(self.ax_hist_x, "Transformed $x$", "$x$")]
             if frozen is None:
                 empty_axes.insert(0, (self.ax_hist_z, "Latent $z$", "$z$"))
@@ -1431,11 +1512,12 @@ class NormFlowApp:
                 ax.set_title(name, fontsize=12, pad=3)
                 ax.set_xlabel(xlab, fontsize=12, labelpad=4)
                 ax.set_ylabel("density", fontsize=12, labelpad=4)
+                ax.spines[["top", "right"]].set_visible(False)
                 ax.text(0.5, 0.5, "Press  'Sample!'\nto generate points",
                         transform=ax.transAxes, ha="center", va="center",
                         fontsize=9, color="#888",
-                        bbox=dict(boxstyle="round,pad=0.4", facecolor="#f5f5f5",
-                                  edgecolor="#ccc", alpha=0.9))
+                        bbox=dict(boxstyle="round,pad=0.4", facecolor=_ph_fc,
+                                  edgecolor=_ph_ec, alpha=0.9))
                 ax.tick_params(labelbottom=False, bottom=False,
                                labelleft=False, left=False)
 
@@ -1469,7 +1551,10 @@ class NormFlowApp:
             if self._loss_entropy_history:
                 self.ax_loss.plot(ep_plot, entr_plot, color=self.CL_ENTR,
                                   lw=LW, zorder=2, label=lbl2)
-            self.ax_loss.plot(ep_plot, tot_plot, color=self.CL, lw=LW, zorder=3,
+            # the total/NLL curve is dark slate in light mode; brighten it for
+            # dark mode so it stays visible against the dark background
+            _cl = "#ECEFF1" if self._dark else self.CL
+            self.ax_loss.plot(ep_plot, tot_plot, color=_cl, lw=LW, zorder=3,
                               label="NLL" if mode=="Example-based" else "total")
             self.ax_loss.legend(fontsize=11, loc="lower center",
                                 bbox_to_anchor=(0.5, 0.93), ncol=3, frameon=False,
@@ -1494,8 +1579,10 @@ class NormFlowApp:
             self.ax_loss.text(0.5, 0.5, "Press  'Train!'\nto start training",
                               transform=self.ax_loss.transAxes,
                               ha="center", va="center", fontsize=9, color="#888",
-                              bbox=dict(boxstyle="round,pad=0.4", facecolor="#f5f5f5",
-                                        edgecolor="#ccc", alpha=0.9))
+                              bbox=dict(boxstyle="round,pad=0.4",
+                                        facecolor=("#3a3a42" if self._dark else "#f5f5f5"),
+                                        edgecolor=("#555" if self._dark else "#ccc"),
+                                        alpha=0.9))
             self.ax_loss.tick_params(labelbottom=False, bottom=False,
                                      labelleft=False, left=False)
 
@@ -1503,6 +1590,8 @@ class NormFlowApp:
         if _ylim is not None:    ax_main.set_ylim(_ylim)
         # (histogram x-ranges are tied to the main z/x axes above, so they need
         # no separate restore here.)
+
+        self._apply_fig_theme()   # recolour for dark / light mode
 
     # ── Sampling ──────────────────────────────────────────────────────────────
 
@@ -1952,7 +2041,7 @@ class NormFlowApp:
         if hasattr(self, "_prog_epoch"): self._prog_epoch.text = f"0 / {_n_tot}"
         if hasattr(self, "_prog_label"):
             self._prog_label.text = ""
-            self._prog_label.style("color:#222")   # reset any leftover red
+            self._set_prog_kind("neutral")   # reset any leftover status colour
         # Make the target distribution visible so convergence is observable,
         # and tick its checkbox to reflect that.
         self._show_target_val = True
@@ -2065,11 +2154,16 @@ class NormFlowApp:
                 avg_str = f"{avg_us/1000.0:.1f} ms/epoch"
             else:
                 avg_str = f"{avg_us:.0f} μs/epoch"
-            msg = f"Done — {n} epochs  ·  avg {avg_str}"; col = "#1B5E20"  # green
+            # success (green) or error (red); _set_prog_kind picks the
+            # theme-aware colour and remembers it so a dark<->light toggle
+            # keeps the right colour.
             if self._train_status is not None:
-                msg, col = self._train_status   # error message keeps its colour
+                msg, _ = self._train_status     # message text; colour by kind
                 self._train_status = None
-            self._prog_label.style(f"color:{col}")
+                self._set_prog_kind("error")
+            else:
+                msg = f"Done — {n} epochs  ·  avg {avg_str}"
+                self._set_prog_kind("done")
             self._prog_label.text = msg
 
     def _train_loop(self):
