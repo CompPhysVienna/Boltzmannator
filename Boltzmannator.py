@@ -350,9 +350,17 @@ class NormFlowApp:
         /* keep the progress-bar fill green (the rule above would grey it) */
         .body--dark .ctrl .q-linear-progress__model {
             background: #21BA45 !important; color: #21BA45 !important; }
-        /* in dark mode, fill the plot panel's letterbox margin with the same
-           grey as the figure background so there is no black border */
-        .body--dark .plotpanel { background: #23232a !important; }
+        /* the figure sits in a "screen" card: rounded corners + soft shadow,
+           its background matching the figure so the letterbox is invisible */
+        .plotcard {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+            box-sizing: border-box; }
+        .body--dark .plotcard {
+            background: #23232a !important;
+            box-shadow: 0 2px 14px rgba(0,0,0,0.55);
+            border: 1px solid #34343d; }
         /* keep the footer muted in dark mode (override the blanket text rule) */
         .body--dark .ctrl .appfooter { color: #888 !important; }
         """)
@@ -740,11 +748,15 @@ class NormFlowApp:
 
             # ── Right matplotlib panel ────────────────────────────────────
             with ui.column().classes("flex-grow plotpanel").style(
-                    "height:100vh; padding:2px 2px 2px 20px; overflow:hidden"):
-                self._plot = (
-                    ui.matplotlib(figsize=(12.5, 9.2))
-                    .classes("w-full h-full")
-                    .style("flex:1; min-height:0"))
+                    "height:100vh; padding:14px; "
+                    "overflow:hidden; box-sizing:border-box"):
+                with ui.column().classes("plotcard w-full").style(
+                        "flex:1; min-height:0; overflow:hidden; "
+                        "padding:6px; box-sizing:border-box"):
+                    self._plot = (
+                        ui.matplotlib(figsize=(12.5, 9.2))
+                        .classes("w-full h-full")
+                        .style("flex:1; min-height:0"))
 
         # ── Figure layout (same GridSpec as tkinter version) ──────────────
         self.fig = self._plot.figure
