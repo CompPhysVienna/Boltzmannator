@@ -271,6 +271,14 @@ class NormFlowApp:
             if leg is not None:
                 for t in leg.get_texts():
                     t.set_color(fg)
+        # The x-histogram's twin axis overlays it; recolour its shared spines
+        # and x-ticks too (otherwise its default-black axis looks darker than
+        # the other panels).  Leave the right spine — that's the brown w(x)
+        # weights axis, styled separately when shown.
+        tw = self.ax_hist_x_twin
+        for name in ("bottom", "top", "left"):
+            tw.spines[name].set_color(fg)
+        tw.tick_params(axis="x", colors=fg)
 
     def _build_ui(self):
         # Per-page CSS — each browser gets its own page, so this is added per
@@ -342,17 +350,30 @@ class NormFlowApp:
         /* keep the progress-bar fill green (the rule above would grey it) */
         .body--dark .ctrl .q-linear-progress__model {
             background: #21BA45 !important; color: #21BA45 !important; }
+        /* in dark mode, fill the plot panel's letterbox margin with the same
+           grey as the figure background so there is no black border */
+        .body--dark .plotpanel { background: #23232a !important; }
         """)
         # Dark-mode controller (starts in light mode).
         self._dark_mode = ui.dark_mode()
+
+        # Remove NiceGUI's default page padding/gap so the 100vh layout starts
+        # flush at the top (otherwise the top margin pushes the bottom controls
+        # off-screen).
+        ui.query(".nicegui-content").classes("p-0 gap-0")
 
         with ui.row().classes("w-full no-wrap").style(
                 "height:100vh; gap:0; overflow:hidden"):
 
             # ── Left control panel ────────────────────────────────────────
+            # CSS grid: image / tabs / (flexible tab-scroll) / bottom controls.
+            # The 3rd row is minmax(0,1fr) so ONLY the tab area shrinks, which
+            # keeps the header and the Reset/Exit buttons always fully visible.
             with ui.column().classes("ctrl no-wrap").style(
-                    "width:340px; min-width:340px; height:100vh; gap:4px; "
-                    "background:#f0f0f0; padding:4px; overflow:hidden"):
+                    "display:grid; grid-template-rows:auto auto minmax(0,1fr) auto; "
+                    "box-sizing:border-box; width:340px; min-width:340px; "
+                    "height:100vh; gap:4px; background:#f0f0f0; padding:4px; "
+                    "overflow:hidden"):
 
                 # Header image with three small circles (overlaid in the
                 # corner, so they cost no extra vertical space) to choose the
@@ -363,7 +384,7 @@ class NormFlowApp:
                 self._pic_dots = []
                 try:
                     with ui.row().classes("no-wrap").style(
-                            "width:100%; justify-content:center; "
+                            "width:100%; flex:0 0 auto; justify-content:center; "
                             "align-items:center; gap:8px; margin:0 auto 4px"):
                         _def = self._default_pic_index()
                         self._header_img = ui.image(
@@ -380,7 +401,7 @@ class NormFlowApp:
 
                 # Tabs — segmented/pill look with Material icons.
                 with ui.tabs().classes("w-full").props(
-                        "dense inline-label") as tabs:
+                        "dense inline-label").style("flex:0 0 auto") as tabs:
                     t_dist  = ui.tab("dist",  label="Densities",
                                      icon="area_chart")
                     # Map: inline SVG of a smooth monotonically increasing
@@ -408,7 +429,8 @@ class NormFlowApp:
                                 '<span>Training</span>').style(
                             "display:inline-flex;align-items:center")
 
-                with ui.scroll_area().classes("w-full").style("flex:1 1 0; min-height:0"):
+                with ui.scroll_area().classes("w-full").style(
+                        "min-height:0; height:100%"):
                     with ui.tab_panels(tabs, value=t_dist).classes("w-full"):
 
                         # ── Densities tab ─────────────────────────────────────
@@ -687,29 +709,31 @@ class NormFlowApp:
                                       tooltip="Clear loss history and reset the "
                                               "transformation to the identity")
 
-                # ── Always-visible controls ───────────────────────────────
-                ui.separator()
-                with ui.row().classes("items-center gap-2 w-full no-wrap"):
-                    self._rescale_cb = ui.checkbox(
-                        "Auto-rescale x / z axes", value=True,
-                        on_change=lambda e: self._cb_change(
-                            "_rescale_axes_val", e.value))
-                    ui.space()
-                    self._dark_switch = ui.switch(
-                        "Dark", value=False,
-                        on_change=lambda e: self._toggle_dark(e.value)
-                    ).props("dense").tooltip("Toggle dark / light mode")
-                ui.separator()
-                with ui.row().classes("gap-2 w-full no-wrap"):
-                    self._btn("Reset", "restart_alt",
-                              "blue-grey-7", self._reset,
-                              tooltip="Reset everything to defaults")
-                    self._btn("Exit", "logout",
-                              "grey-9", self._exit_app,
-                              tooltip="Close this session")
+                # ── Always-visible controls (never shrink: flex 0 0 auto) ──
+                with ui.column().classes("w-full no-wrap").style(
+                        "flex:0 0 auto; gap:4px"):
+                    ui.separator()
+                    with ui.row().classes("items-center gap-2 w-full no-wrap"):
+                        self._rescale_cb = ui.checkbox(
+                            "Auto-rescale x / z axes", value=True,
+                            on_change=lambda e: self._cb_change(
+                                "_rescale_axes_val", e.value))
+                        ui.space()
+                        self._dark_switch = ui.switch(
+                            "Dark", value=False,
+                            on_change=lambda e: self._toggle_dark(e.value)
+                        ).props("dense").tooltip("Toggle dark / light mode")
+                    ui.separator()
+                    with ui.row().classes("gap-2 w-full no-wrap"):
+                        self._btn("Reset", "restart_alt",
+                                  "blue-grey-7", self._reset,
+                                  tooltip="Reset everything to defaults")
+                        self._btn("Exit", "logout",
+                                  "grey-9", self._exit_app,
+                                  tooltip="Close this session")
 
             # ── Right matplotlib panel ────────────────────────────────────
-            with ui.column().classes("flex-grow").style(
+            with ui.column().classes("flex-grow plotpanel").style(
                     "height:100vh; padding:2px 2px 2px 20px; overflow:hidden"):
                 self._plot = (
                     ui.matplotlib(figsize=(12.5, 9.2))
@@ -1471,7 +1495,9 @@ class NormFlowApp:
                 try:
                     _, _, Z_w, shift_w = self._tgt_cache_val
                     if Z_w > 0:
-                        CW = "#6D4C41"; ax_tw = self.ax_hist_x_twin
+                        # warm brown; brighter tan in dark mode for contrast
+                        CW = "#C9A27A" if self._dark else "#6D4C41"
+                        ax_tw = self.ax_hist_x_twin
                         ok_px = p_x_sorted > 1e-10
                         U_xs = (u1b*x_sorted + u2b*x_sorted**2
                                 + u3b*x_sorted**3 + u4b*x_sorted**4)
