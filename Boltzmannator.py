@@ -136,7 +136,7 @@ class NormFlowApp:
         self._rescale_axes_val   = True
         self._show_iw_val        = False
         self._show_map_lines_val = False
-        self._n_map_pts_val      = "10"
+        self._n_map_pts_val      = "50"
         self._show_data_val      = True
         self._show_target_val    = False
         self._show_exact_val     = False
@@ -479,21 +479,6 @@ class NormFlowApp:
                             self._add_slider("u₃", "u3", -1.0, 1.0, 0.0, 0.05)
                             self._add_slider("u₄", "u4",  0.05, 1.5, 0.1, 0.05)
 
-                            ui.separator()
-                            with ui.row().classes("items-center gap-2 w-full"):
-                                self._show_map_cb = ui.checkbox(
-                                    "Show mapping lines", value=False,
-                                    on_change=lambda e: self._cb_change(
-                                        "_show_map_lines_val", e.value))
-                                ui.label("N =").style("font-size:13px")
-                                self._n_map_input = (
-                                    ui.input(value="10")
-                                    .style("width:50px")
-                                    .props("dense")
-                                )
-                                self._n_map_input.on(
-                                    "change", lambda _: self._request_render())
-
                         # ── Map tab ───────────────────────────────────────────
                         with ui.tab_panel(t_map).classes("maptab"):
                             ui.html("Transformation f<sub>θ</sub>(z)").style(
@@ -614,6 +599,21 @@ class NormFlowApp:
                                           "deep-purple-5", self._randomize_map_params,
                                           tooltip="Set random transformation "
                                                   "parameters")
+
+                            ui.separator()
+                            with ui.row().classes("items-center gap-2 w-full"):
+                                self._show_map_cb = ui.checkbox(
+                                    "Show mapping lines", value=False,
+                                    on_change=lambda e: self._cb_change(
+                                        "_show_map_lines_val", e.value))
+                                ui.label("N =").style("font-size:13px")
+                                self._n_map_input = (
+                                    ui.input(value="50")
+                                    .style("width:50px")
+                                    .props("dense")
+                                )
+                                self._n_map_input.on(
+                                    "change", lambda _: self._request_render())
 
                         # ── Training tab ──────────────────────────────────────
                         with ui.tab_panel(t_train).classes("traintab"):
@@ -979,11 +979,11 @@ class NormFlowApp:
         if hasattr(self, "_show_map_cb"):    self._show_map_cb.value    = False
         if hasattr(self, "_rescale_cb"):     self._rescale_cb.value     = True
         if hasattr(self, "_n_entry_input"):  self._n_entry_input.value  = "1000"
-        if hasattr(self, "_n_map_input"):    self._n_map_input.value    = "10"
+        if hasattr(self, "_n_map_input"):    self._n_map_input.value    = "50"
         self._show_data_val      = True
         self._show_iw_val        = False
         self._show_map_lines_val = False
-        self._n_map_pts_val      = "10"
+        self._n_map_pts_val      = "50"
         self._rescale_axes_val   = True
         self._loss_history          = []
         self._loss_energy_history   = []
