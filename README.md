@@ -2,7 +2,7 @@
 
 An interactive visualiser for one‑dimensional **normalising flows**. Choose a
 latent distribution *p_z(z)*, shape it with a parametric transformation
-*x = f_θ(z)*, and watch the push‑forward density *p_x(x)* — then train the
+*x = f_θ(z)*, and watch the push‑forward density *p_x(x)*. Then train the
 transformation to match a target Boltzmann distribution *p\*(x)* or example
 data. Built with [NiceGUI](https://nicegui.io); it runs in your web browser.
 
