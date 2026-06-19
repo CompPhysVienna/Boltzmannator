@@ -390,7 +390,8 @@ class NormFlowApp:
                 # picture; the filled circle marks the current choice.
                 self._pic_files = ["Boltzmannator_title.png",
                                    "Boltzmannator_movie.png",
-                                   "Boltzmann.png"]
+                                   "Boltzmann.png",
+                                   "Boltzmann_bust.png"]
                 self._pic_dots = []
                 try:
                     with ui.row().classes("no-wrap").style(
