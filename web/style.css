@@ -295,8 +295,22 @@ label.switch input:checked + .track::after { left: 17px; }
 
 #plotwrap {
   flex: 1; height: 100vh; height: 100dvh; padding: 14px;
-  display: flex; min-width: 0;
+  display: flex; min-width: 0; position: relative;
 }
+
+/* Full-screen toggle: only shown on touch devices whose browser actually
+   supports the Fullscreen API (JS adds .avail); hidden on iOS Safari, which
+   does not support it for regular pages, and on desktop (fine pointer). */
+#btn-fs {
+  position: absolute; top: 20px; right: 20px; z-index: 6;
+  width: 36px; height: 36px; border: none; border-radius: 9px;
+  background: rgba(20,20,26,.30); color: #fff; cursor: pointer;
+  display: none; align-items: center; justify-content: center;
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+#btn-fs svg { width: 19px; height: 19px; }
+#btn-fs:active { background: rgba(20,20,26,.48); }
+@media (pointer: coarse) { #btn-fs.avail { display: inline-flex; } }
 #plotcard {
   flex: 1; min-width: 0; min-height: 0;
   background: var(--card-bg);

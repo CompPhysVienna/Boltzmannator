@@ -1560,8 +1560,56 @@ function init() {
     new ResizeObserver(() => requestRender())
         .observe(document.getElementById("plotcard"));
 
+    setupFullscreenButton();
+
     drawFigure();
     setInterval(tick, 30);
+}
+
+/* Full-screen toggle over the plot.  Only wired up (and shown) where the
+   Fullscreen API is available — Android Chrome, desktop — so on iOS Safari,
+   which does not support it for regular pages, no dead button appears. */
+function setupFullscreenButton() {
+    const ICON_EXPAND =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3' +
+        'M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
+    const ICON_COLLAPSE =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M8 3v3a2 2 0 0 1-2 2H3M16 3v3a2 2 0 0 0 2 2h3' +
+        'M8 21v-3a2 2 0 0 0-2-2H3M16 21v-3a2 2 0 0 1 2-2h3"/></svg>';
+    const btn = document.createElement("button");
+    btn.id = "btn-fs";
+    btn.setAttribute("aria-label", "Toggle full screen");
+    btn.title = "Full screen";
+    btn.innerHTML = ICON_EXPAND;
+    document.getElementById("plotwrap").appendChild(btn);
+
+    const supported = !!(document.fullscreenEnabled ||
+                         document.webkitFullscreenEnabled);
+    if (!supported) return;                 // stays hidden (no .avail)
+    btn.classList.add("avail");
+
+    const isFs = () => document.fullscreenElement ||
+                       document.webkitFullscreenElement;
+    btn.addEventListener("click", () => {
+        if (isFs()) {
+            (document.exitFullscreen || document.webkitExitFullscreen)
+                .call(document);
+        } else {
+            const el = document.documentElement;
+            (el.requestFullscreen || el.webkitRequestFullscreen)
+                .call(el).catch(() => {});
+        }
+    });
+    const onChange = () => {
+        btn.innerHTML = isFs() ? ICON_COLLAPSE : ICON_EXPAND;
+        requestRender();                    // re-fit the canvas to the new size
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    document.addEventListener("webkitfullscreenchange", onChange);
 }
 
 document.addEventListener("DOMContentLoaded", init);
