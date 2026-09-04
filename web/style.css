@@ -54,7 +54,8 @@ html, body {
 /* ── Control panel ──────────────────────────────────────────────────── */
 
 #panel {
-  width: 340px; min-width: 340px; height: 100vh;
+  width: 340px; min-width: 340px;
+  height: 100vh; height: 100dvh;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 6px;
@@ -285,12 +286,15 @@ label.switch input:checked + .track::after { left: 17px; }
 }
 @media (max-height: 560px) {
   #header-row { display: none; }
+  /* header removed from the grid → drop its row so the bottom bar keeps its
+     own track (otherwise items shift up and Reset/Exit collapse to 0). */
+  #panel { grid-template-rows: auto minmax(0, 1fr) auto; }
 }
 
 /* ── Plot panel ─────────────────────────────────────────────────────── */
 
 #plotwrap {
-  flex: 1; height: 100vh; padding: 14px;
+  flex: 1; height: 100vh; height: 100dvh; padding: 14px;
   display: flex; min-width: 0;
 }
 #plotcard {
@@ -332,6 +336,8 @@ label.switch input:checked + .track::after { left: 17px; }
     order: 1;
     width: 100%; min-width: 0;
     height: auto; flex: 1 1 auto; min-height: 0;
+    /* header is hidden below → 3-row grid so the bottom bar keeps its track */
+    grid-template-rows: auto minmax(0, 1fr) auto;
     border-right: none;
     border-top: 1px solid var(--panel-border);
     padding: 6px 10px 8px;
