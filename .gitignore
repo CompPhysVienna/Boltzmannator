@@ -14,3 +14,18 @@
 !Boltzmann_bust.png
 !Boltzmannator_doc.pdf
 !Boltzmannator_doc.tex
+
+# JavaScript (browser) edition — standalone client-side app in web/
+!web/
+!web/index.html
+!web/style.css
+!web/README.md
+!web/js/
+!web/js/math.js
+!web/js/plots.js
+!web/js/app.js
+!web/img/
+!web/img/Boltzmannator_title.png
+!web/img/Boltzmannator_movie.png
+!web/img/Boltzmann.png
+!web/img/Boltzmann_bust.png

@@ -1,0 +1,306 @@
+/* Boltzmannator — modern light/dark UI */
+
+:root {
+  --accent:        #1565C0;
+  --accent-hover:  #1259a8;
+  --bg:            #e9eaef;
+  --panel-bg:      #f5f5f7;
+  --panel-border:  #e0e0e6;
+  --card-bg:       #ffffff;
+  --text:          #1d1d22;
+  --muted:         #6b6b74;
+  --faint:         #9a9aa2;
+  --tabs-bg:       #e2e2ea;
+  --tab-text:      #555;
+  --field-bg:      #ffffff;
+  --field-border:  #d4d4dc;
+  --track:         #d7d7df;
+  --sep:           #e2e2e8;
+  --shadow:        0 2px 12px rgba(0,0,0,.15);
+  --positive:      #21BA45;
+}
+
+html.dark {
+  --bg:            #17171b;
+  --panel-bg:      #26262b;
+  --panel-border:  #34343d;
+  --card-bg:       #23232a;
+  --text:          #e2e2e2;
+  --muted:         #a0a0a8;
+  --faint:         #77777f;
+  --tabs-bg:       #3a3a42;
+  --tab-text:      #b9b9c2;
+  --field-bg:      #2e2e35;
+  --field-border:  #46464f;
+  --track:         #47474f;
+  --sep:           #3a3a42;
+  --shadow:        0 2px 14px rgba(0,0,0,.55);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+               "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+#app { display: flex; height: 100vh; }
+
+/* ── Control panel ──────────────────────────────────────────────────── */
+
+#panel {
+  width: 340px; min-width: 340px; height: 100vh;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 6px;
+  background: var(--panel-bg);
+  border-right: 1px solid var(--panel-border);
+  padding: 8px;
+  transition: background .25s;
+}
+
+#header-row {
+  display: flex; justify-content: center; align-items: center; gap: 10px;
+}
+#header-img {
+  width: 230px; display: block; border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.18);
+}
+#pic-dots { display: flex; flex-direction: column; gap: 8px; }
+.pic-dot {
+  width: 13px; height: 13px; border-radius: 50%; cursor: pointer;
+  border: 2px solid var(--faint); background: transparent;
+  transition: background .15s, border-color .15s, transform .1s;
+}
+.pic-dot:hover { transform: scale(1.2); }
+.pic-dot.active { background: var(--accent); border-color: var(--accent); }
+
+/* ── Tabs (segmented pill) ──────────────────────────────────────────── */
+
+#tabs {
+  display: flex; background: var(--tabs-bg); border-radius: 10px;
+  padding: 3px; gap: 3px;
+}
+.tab {
+  flex: 1 1 0; display: inline-flex; align-items: center;
+  justify-content: center; gap: 6px;
+  min-height: 34px; border: none; border-radius: 8px;
+  background: transparent; color: var(--tab-text);
+  font-size: 12.5px; font-family: inherit; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  background: var(--accent); color: #fff; font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+.tab .nabla { font-size: 19px; font-weight: 600; line-height: 1; }
+
+/* ── Scrollable tab content ─────────────────────────────────────────── */
+
+#tab-scroll {
+  min-height: 0; overflow-y: auto; overflow-x: hidden;
+  padding: 2px 6px 2px 2px;
+  scrollbar-width: thin;
+}
+.tabpanel { display: flex; flex-direction: column; gap: 3px; }
+.tabpanel.hidden { display: none; }
+
+.sect-title { font-weight: 700; font-size: 13px; margin: 6px 0 2px; }
+.sect-sub   { font-size: 12.5px; color: var(--muted); font-style: italic;
+              margin-bottom: 2px; }
+.grp-label  { font-size: 12.5px; font-style: italic; color: var(--muted);
+              margin-top: 9px; }
+
+hr.sep { border: none; border-top: 1px solid var(--sep); margin: 5px 0;
+         width: 100%; }
+
+/* ── Rows / layout helpers ──────────────────────────────────────────── */
+
+.row { display: flex; align-items: center; gap: 8px; }
+.row > span { white-space: nowrap; }
+.row.gap { gap: 8px; }
+.row.spread { justify-content: space-between; }
+.grow { flex: 1; }
+.spacer { flex: 1; }
+.hidden { display: none !important; }
+
+/* ── Sliders ────────────────────────────────────────────────────────── */
+
+.sldrow { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+.sldrow .lbl { min-width: 22px; font-size: 13px; flex: 0 0 auto; }
+.sldrow .val {
+  min-width: 46px; text-align: right; font-weight: 600; font-size: 12.5px;
+  color: var(--text); font-variant-numeric: tabular-nums; flex: 0 0 auto;
+}
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  flex: 1; height: 18px; background: transparent; margin: 0; min-width: 0;
+  --p: 50%;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(to right,
+      var(--accent) 0%, var(--accent) var(--p),
+      var(--track) var(--p), var(--track) 100%);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--card-bg);
+  box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  margin-top: -5px; cursor: pointer;
+  transition: transform .1s;
+}
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.25); }
+input[type="range"]::-moz-range-track {
+  height: 4px; border-radius: 2px; background: var(--track);
+}
+input[type="range"]::-moz-range-progress {
+  height: 4px; border-radius: 2px; background: var(--accent);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--card-bg);
+  cursor: pointer;
+}
+
+/* ── Selects / inputs ───────────────────────────────────────────────── */
+
+select, input[type="text"] {
+  font-family: inherit; font-size: 13px; color: var(--text);
+  background: var(--field-bg);
+  border: 1px solid var(--field-border); border-radius: 7px;
+  padding: 5px 8px; outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+select { width: 100%; cursor: pointer; }
+select:focus, input[type="text"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(21,101,192,.18);
+}
+input.num { width: 70px; text-align: center; }
+input.num-sm { width: 52px; text-align: center; }
+
+/* ── Checkboxes / radios ────────────────────────────────────────────── */
+
+label.check, label.radio {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; cursor: pointer; user-select: none;
+}
+input[type="checkbox"], input[type="radio"] {
+  accent-color: var(--accent);
+  width: 15px; height: 15px; margin: 0; cursor: pointer;
+}
+.radio-group { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+
+/* ── Dark-mode switch ───────────────────────────────────────────────── */
+
+label.switch {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  user-select: none;
+}
+label.switch input { display: none; }
+label.switch .track {
+  width: 34px; height: 19px; border-radius: 10px; background: var(--track);
+  position: relative; transition: background .2s;
+}
+label.switch .track::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 15px; height: 15px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  transition: left .2s;
+}
+label.switch input:checked + .track { background: var(--accent); }
+label.switch input:checked + .track::after { left: 17px; }
+.switch-label { font-size: 13px; }
+
+/* ── Buttons ────────────────────────────────────────────────────────── */
+
+.btn {
+  border: none; border-radius: 8px; color: #fff;
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  letter-spacing: .2px; padding: 7px 10px; cursor: pointer;
+  transition: filter .12s, transform .05s, box-shadow .12s;
+  box-shadow: 0 1px 2px rgba(0,0,0,.18);
+}
+.btn:hover  { filter: brightness(1.12); box-shadow: 0 2px 5px rgba(0,0,0,.22); }
+.btn:active { transform: translateY(1px); filter: brightness(.95); }
+.btn.full { width: 100%; }
+
+.btn-primary  { background: #1565C0; }
+.btn-teal     { background: #00796B; }
+.btn-positive { background: #21BA45; }
+.btn-negative { background: #C10015; }
+.btn-orange   { background: #EF6C00; }
+.btn-bluegrey { background: #546E7A; }
+.btn-bluegrey7{ background: #455A64; }
+.btn-grey     { background: #424248; }
+.btn-purple   { background: #7E57C2; }
+
+/* ── Progress bar ───────────────────────────────────────────────────── */
+
+#prog-wrap { width: 100%; margin: 3px 0 1px; }
+#prog-bar {
+  position: relative; width: 100%; height: 20px; border-radius: 6px;
+  background: var(--track); overflow: hidden;
+}
+#prog-fill {
+  position: absolute; inset: 0 auto 0 0; width: 0%;
+  background: var(--positive); border-radius: 6px;
+  transition: width .12s linear;
+}
+#prog-epoch {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; font-size: 12.5px; font-weight: 600; color: #fff;
+  text-shadow: 0 0 3px rgba(0,0,0,.55);
+}
+#prog-label {
+  font-size: 12.5px; text-align: center; white-space: pre; margin-top: 3px;
+  min-height: 17px;
+}
+
+/* ── Bottom controls / footer ───────────────────────────────────────── */
+
+#panel-bottom { display: flex; flex-direction: column; gap: 5px; }
+#footer {
+  width: 100%; text-align: center; font-size: 10px; color: var(--faint);
+  margin-top: 2px;
+}
+
+/* ── Responsive: shrink the header on short windows so the controls
+      always stay usable ─────────────────────────────────────────────── */
+
+@media (max-height: 860px) {
+  #header-img { width: 180px; }
+}
+@media (max-height: 700px) {
+  #header-img { width: 130px; }
+  .tab { min-height: 30px; }
+}
+@media (max-height: 560px) {
+  #header-row { display: none; }
+}
+
+/* ── Plot panel ─────────────────────────────────────────────────────── */
+
+#plotwrap {
+  flex: 1; height: 100vh; padding: 14px;
+  display: flex; min-width: 0;
+}
+#plotcard {
+  flex: 1; min-width: 0; min-height: 0;
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--shadow);
+  padding: 6px; overflow: hidden;
+  display: flex;
+  transition: background .25s;
+}
+#plot { flex: 1; min-width: 0; min-height: 0; width: 100%; height: 100%; }
