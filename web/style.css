@@ -49,7 +49,17 @@ html, body {
   overflow: hidden;
 }
 
-#app { display: flex; height: 100vh; height: 100dvh; }
+#app {
+  display: flex;
+  height: 100vh; height: 100dvh;
+  /* With viewport-fit=cover the page fills the whole screen (no auto margin);
+     these insets keep content clear of the notch / status bar / home
+     indicator. They are 0 in a normal browser and on desktop, so nothing
+     changes there — they only matter for a home-screen (standalone) launch,
+     where they reclaim the wasted top strip in landscape. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
 
 /* ── Control panel ──────────────────────────────────────────────────── */
 
