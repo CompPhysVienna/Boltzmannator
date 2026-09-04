@@ -1560,6 +1560,17 @@ function init() {
     new ResizeObserver(() => requestRender())
         .observe(document.getElementById("plotcard"));
 
+    // On iOS an orientation change can fire the resize observer with stale
+    // dimensions, leaving the plot band mis-sized until the next interaction.
+    // Force redraws once the new layout has settled.
+    const refitAfterRotate = () => {
+        requestRender();
+        setTimeout(requestRender, 200);
+        setTimeout(requestRender, 500);
+    };
+    window.addEventListener("orientationchange", refitAfterRotate);
+    window.addEventListener("resize", refitAfterRotate);
+
     setupFullscreenButton();
 
     drawFigure();

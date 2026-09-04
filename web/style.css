@@ -350,7 +350,10 @@ label.switch input:checked + .track::after { left: 17px; }
 
   #plotwrap {
     order: 0;
-    flex: 0 0 42vh;              /* plot band pinned at the top */
+    /* dvh (not vh) so the band tracks the visible viewport and can't be left
+       too tall by a stale vh after an orientation change */
+    flex: 0 0 42vh;
+    flex-basis: 42dvh;
     height: auto; width: 100%;
     padding: 8px 8px 4px;
   }
@@ -376,7 +379,7 @@ label.switch input:checked + .track::after { left: 17px; }
 
 /* Very short portrait (small phones): give the plot a bit less height */
 @media (max-width: 820px) and (orientation: portrait) and (max-height: 640px) {
-  #plotwrap { flex-basis: 36vh; }
+  #plotwrap { flex-basis: 36vh; flex-basis: 36dvh; }
 }
 
 /* — Small landscape (phones held sideways): keep side-by-side, trim panel — */
