@@ -49,7 +49,7 @@ html, body {
   overflow: hidden;
 }
 
-#app { display: flex; height: 100vh; }
+#app { display: flex; height: 100vh; height: 100dvh; }
 
 /* ── Control panel ──────────────────────────────────────────────────── */
 
@@ -304,3 +304,77 @@ label.switch input:checked + .track::after { left: 17px; }
   transition: background .25s;
 }
 #plot { flex: 1; min-width: 0; min-height: 0; width: 100%; height: 100%; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   MOBILE / TOUCH
+   On a narrow PORTRAIT screen the desktop side-by-side layout does not fit,
+   so we stack vertically: the plot becomes a band pinned at the top and the
+   control panel fills the rest (its tab content scrolls internally, exactly
+   as on desktop).  The plot therefore stays visible live while sliders are
+   moved.  In LANDSCAPE we keep the side-by-side layout (there is enough
+   width), only trimming the panel.  A separate coarse-pointer block enlarges
+   the touch targets (slider thumbs, checkboxes, buttons).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* — Portrait phones/tablets: stack plot over controls — */
+@media (max-width: 820px) and (orientation: portrait) {
+  #app { flex-direction: column; }
+
+  #plotwrap {
+    order: 0;
+    flex: 0 0 42vh;              /* plot band pinned at the top */
+    height: auto; width: 100%;
+    padding: 8px 8px 4px;
+  }
+  #plotcard { padding: 4px; }
+
+  #panel {
+    order: 1;
+    width: 100%; min-width: 0;
+    height: auto; flex: 1 1 auto; min-height: 0;
+    border-right: none;
+    border-top: 1px solid var(--panel-border);
+    padding: 6px 10px 8px;
+  }
+
+  /* The decorative portrait yields to the controls on a phone: hiding it
+     gives the scrollable tab area the room it needs.  (The picture chooser
+     is a desktop nicety; it returns in landscape and on wider screens.) */
+  #header-row { display: none; }
+  #tab-scroll { padding-right: 2px; }
+}
+
+/* Very short portrait (small phones): give the plot a bit less height */
+@media (max-width: 820px) and (orientation: portrait) and (max-height: 640px) {
+  #plotwrap { flex-basis: 36vh; }
+}
+
+/* — Small landscape (phones held sideways): keep side-by-side, trim panel — */
+@media (max-width: 900px) and (orientation: landscape) {
+  #panel { width: 288px; min-width: 288px; padding: 6px; }
+  #plotwrap { padding: 8px; }
+}
+
+/* — Touch devices: bigger hit targets regardless of orientation — */
+@media (pointer: coarse) {
+  input[type="range"] { height: 30px; touch-action: none; }
+  input[type="range"]::-webkit-slider-runnable-track { height: 5px; }
+  input[type="range"]::-webkit-slider-thumb {
+    width: 24px; height: 24px; margin-top: -10px; border-width: 3px;
+  }
+  input[type="range"]::-moz-range-track,
+  input[type="range"]::-moz-range-progress { height: 5px; }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px; height: 22px; border-width: 3px;
+  }
+  .sldrow { min-height: 34px; }
+  input[type="checkbox"], input[type="radio"] { width: 20px; height: 20px; }
+  label.check, label.radio, .switch-label { font-size: 14px; }
+  label.switch .track { width: 42px; height: 24px; border-radius: 12px; }
+  label.switch .track::after { width: 20px; height: 20px; }
+  label.switch input:checked + .track::after { left: 20px; }
+  .tab { min-height: 42px; font-size: 13.5px; }
+  .btn { padding: 11px 12px; font-size: 14px; }
+  select, input[type="text"] { padding: 8px 9px; font-size: 14px; }
+  .pic-dot { width: 16px; height: 16px; }
+}

@@ -51,5 +51,8 @@ rational-quadratic spline) agree to 13+ significant digits.
   RMSprop; live animated figure, loss decomposition, best-parameter finish
 - Sampling and target-data generation, mapping lines, auto-rescale lock,
   dark/light mode, header-picture chooser
+- Responsive layout: on a phone in portrait the plot sits as a live band
+  above the scrollable controls; in landscape it returns to the desktop
+  side-by-side view. Touch targets are enlarged on touch devices.
 
 © 2026 Christoph Dellago
