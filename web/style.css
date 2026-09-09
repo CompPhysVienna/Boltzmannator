@@ -416,6 +416,30 @@ html.dark .try-btn:hover { background: #6ba3e8; color: #17171b; }
 /* on touch devices the full-screen button owns that corner */
 @media (pointer: coarse) { #btn-dl { right: 64px; opacity: .6; } }
 
+/* share-link button, to the left of the download button */
+#btn-share {
+  position: absolute; top: 20px; right: 64px; z-index: 6;
+  width: 36px; height: 36px; border: none; border-radius: 9px;
+  background: transparent; color: var(--faint); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  opacity: .45; transition: opacity .15s, background .15s, color .15s;
+}
+#btn-share:hover { opacity: 1; background: var(--tabs-bg); color: var(--text); }
+#btn-share svg { width: 18px; height: 18px; }
+@media (pointer: coarse) { #btn-share { right: 108px; opacity: .6; } }
+
+/* toast notification (link copied) */
+#toast {
+  position: fixed; top: 66px; right: 24px; z-index: 200;
+  background: var(--accent); color: #fff;
+  padding: 8px 14px; border-radius: 9px;
+  font-size: 13px; font-weight: 500;
+  box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  opacity: 0; transform: translateY(-6px); pointer-events: none;
+  transition: opacity .2s, transform .2s;
+}
+#toast.show { opacity: 1; transform: translateY(0); }
+
 /* ── Hover tooltips ─────────────────────────────────────────────────── */
 
 #tooltip {

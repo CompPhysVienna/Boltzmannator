@@ -1213,6 +1213,41 @@ function drawFigure() {
         axLoss.textAxes(0.5, 0.5, "Press  'Train!'\nto start training",
             { size: 9 * FS, color: "#888", bbox: ph });
     }
+
+    /* — free-energy / KL readout (top-left margin, shown with the target) —
+       βF_flow = ⟨ln p_z⟩ + ⟨U/kT − ln|J|⟩ is the variational free energy of
+       the flow; βF_exact = −ln Z.  Their difference is KL(p_x ‖ p*) ≥ 0. */
+    if (S.showTarget && isMonotone) {
+        const { Z, shift } = targetCache();
+        if (Z > 0) {
+            const dzg = z[1] - z[0];
+            let Ipz = 0, Hs = 0, Es = 0, bad = false;
+            for (let i = 0; i < nZ; i++) {
+                const p = pZ[i];
+                if (p <= 1e-300) continue;
+                const Jabs = Math.abs(J[i]);
+                if (Jabs <= 1e-12) { bad = true; break; }
+                Ipz += p * dzg;
+                Hs += p * Math.log(p) * dzg;
+                Es += p * (potentialU(x[i], tg) / tg.kT - Math.log(Jabs)) * dzg;
+            }
+            if (!bad && Ipz > 0.5) {
+                const bFflow = (Hs + Es) / Ipz;
+                const bFexact = -(shift + Math.log(Z));
+                let kl = bFflow - bFexact;
+                if (kl < 0 && kl > -0.05) kl = 0;
+                if (Number.isFinite(bFflow) && Number.isFinite(kl)) {
+                    drawRich(ctx, [
+                        "βF", ["flow", "sub"], ` = ${bFflow.toFixed(3)}      `,
+                        "βF", ["exact", "sub"], ` = ${bFexact.toFixed(3)}      `,
+                        "KL(p", ["x", "sub"], "‖p*)", ` = ${kl.toFixed(3)}`],
+                        xf(leftCols[0][0]), 26,
+                        { size: 10.5 * FS, align: "left",
+                          color: S.dark ? "#b9b9c2" : "#555555" });
+                }
+            }
+        }
+    }
 }
 
 function drawImportanceWeights(axHistX, displaySamples, xSorted, pxSorted,
@@ -1331,7 +1366,7 @@ async function trainLoop() {
     S.trainZBatch = zBatch;
     const xData = S.dataX;
     if (trainMode === "Example-based" && (xData === null || xData.length === 0)) {
-        S.trainStatus = "No data — click 'Data' first";
+        S.trainStatus = "No data: press 'Data' first";
         S.training = false;
         return;
     }
@@ -1370,20 +1405,20 @@ async function trainLoop() {
             [loss, ener, entr] = computeLoss(params, zBatch, target,
                                              ttype, K, true);
             if (!Number.isFinite(loss)) {
-                S.trainStatus = "Loss diverged — reduce lr";
+                S.trainStatus = "Loss diverged: reduce the learning rate";
                 S.training = false;
                 return;
             }
             grad = (ttype === T_RQS)
-                ? gradientFd(params, zBatch, target, ttype, K)
+                ? rqsGradientEnergy(params, zBatch, target, K)
                 : gradientAnalytic(params, zBatch, target, ttype, K);
         } else {
             const res = (ttype === T_RQS)
-                ? lossAndGradFdExample(params, xData, latent, ttype, K)
+                ? rqsLossAndGradExample(params, xData, latent, K)
                 : lossAndGradExample(params, xData, latent, ttype, K);
             loss = res.total; ener = res.ener; entr = res.entr; grad = res.grad;
             if (!Number.isFinite(loss)) {
-                S.trainStatus = "Loss diverged — reduce lr";
+                S.trainStatus = "Loss diverged: reduce the learning rate";
                 S.training = false;
                 return;
             }
@@ -1461,7 +1496,7 @@ function doEndOfTraining() {
         const avgStr = avg >= 1000
             ? `${(avg / 1000).toFixed(1)} ms/epoch`
             : `${avg.toFixed(0)} μs/epoch`;
-        msg = `Done — ${n} epochs  ·  avg ${avgStr}`;
+        msg = `Done: ${n} epochs  ·  avg ${avgStr}`;
         setProgKind("done");
     }
     setProgress(1, `${n} / ${n}`, msg);
@@ -1633,6 +1668,123 @@ function applyPreset(name) {
     requestRender();
 }
 
+/* ── Shareable URLs ─────────────────────────────────────────────────────── */
+
+function buildShareState() {
+    return {
+        d: S.dist, t: S.transform, K: S.K, KR: S.Krqs, dk: S.dark,
+        v: { ...S.vals },
+        c: [S.showTarget, S.showExact, S.showData, S.showIW,
+            S.showMapLines, S.rescale],
+        i: { ne: UI.nEntryInput.value, nm: UI.nMapInput.value,
+             ep: UI.nEpochsInput.value, lr: UI.lrInput.value,
+             nb: UI.nBatchInput.value, st: UI.strideInput.value,
+             dl: UI.delayInput.value },
+        m: S.trainMode, o: S.optimizer, rs: S.resample,
+    };
+}
+
+function applyShareState(st) {
+    if (typeof st.dk === "boolean" && st.dk !== S.dark) {
+        UI.darkCb.checked = st.dk;
+        toggleDark(st.dk);
+    }
+    if (st.d) {
+        S.dist = st.d;
+        UI.distSelect.value = st.d;
+        configureLatentSliders(st.d);
+    }
+    if (st.t) { S.transform = st.t; UI.transformSelect.value = st.t; }
+    if (st.K) { S.K = st.K; if (UI.kRadio.inputs[st.K]) UI.kRadio.inputs[st.K].checked = true; }
+    if (st.KR) { S.Krqs = st.KR; if (UI.kRqsRadio.inputs[st.KR]) UI.kRqsRadio.inputs[st.KR].checked = true; }
+    onTransformChange();
+    if (st.v) {
+        S.suppressRedraw = true;
+        try {
+            for (const [k, val] of Object.entries(st.v))
+                if (k in S.vals && Number.isFinite(val)) setVal(k, val);
+        } finally { S.suppressRedraw = false; }
+    }
+    if (Array.isArray(st.c) && st.c.length === 6) {
+        setCheckbox(UI.showTargetCb, "showTarget", !!st.c[0]);
+        setCheckbox(UI.showExactCb, "showExact", !!st.c[1]);
+        setCheckbox(UI.showDataCb, "showData", !!st.c[2]);
+        setCheckbox(UI.showIwCb, "showIW", !!st.c[3]);
+        setCheckbox(UI.showMapCb, "showMapLines", !!st.c[4]);
+        UI.rescaleCb.checked = !!st.c[5];
+        S.rescale = !!st.c[5];
+    }
+    if (st.i) {
+        if (st.i.ne) UI.nEntryInput.value = st.i.ne;
+        if (st.i.nm) UI.nMapInput.value = st.i.nm;
+        if (st.i.ep) UI.nEpochsInput.value = st.i.ep;
+        if (st.i.lr) UI.lrInput.value = st.i.lr;
+        if (st.i.nb) UI.nBatchInput.value = st.i.nb;
+        if (st.i.st) UI.strideInput.value = st.i.st;
+        if (st.i.dl) UI.delayInput.value = st.i.dl;
+    }
+    if (st.m && UI.modeRadio.inputs[st.m]) {
+        UI.modeRadio.inputs[st.m].checked = true;
+        S.trainMode = st.m;
+    }
+    if (st.o) { S.optimizer = st.o; UI.optSelect.value = st.o; }
+    if (typeof st.rs === "boolean") {
+        S.resample = st.rs;
+        UI.resampleCb.input.checked = st.rs;
+    }
+    refreshValueLabels();
+    requestRender();
+}
+
+function encodeShareState() {
+    const json = JSON.stringify(buildShareState());
+    return btoa(json).replace(/\+/g, "-").replace(/\//g, "_")
+                     .replace(/=+$/, "");
+}
+
+function applyStateFromHash() {
+    const h = window.location.hash;
+    if (!h.startsWith("#s=")) return;
+    try {
+        const b64 = h.slice(3).replace(/-/g, "+").replace(/_/g, "/");
+        applyShareState(JSON.parse(atob(b64)));
+    } catch (e) { /* malformed link: keep the defaults */ }
+}
+
+function showToast(msg) {
+    let toast = document.getElementById("toast");
+    if (!toast) {
+        toast = el("div", { id: "toast" });
+        document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove("show"), 1800);
+}
+
+function initShareButton() {
+    const btn = el("button", { id: "btn-share", "aria-label": "Copy link" });
+    btn.dataset.tip = "Copy a link that reproduces the current settings.";
+    btn.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M10 14a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07' +
+        'L11.5 5.43M14 10a5 5 0 0 0-7.07 0L4.1 12.83a5 5 0 0 0 7.07 7.07' +
+        'l1.32-1.33"/></svg>';
+    btn.addEventListener("click", () => {
+        const url = window.location.origin + window.location.pathname
+                  + "#s=" + encodeShareState();
+        history.replaceState(null, "", url);
+        const done = () => showToast("Link copied to the clipboard");
+        if (navigator.clipboard && navigator.clipboard.writeText)
+            navigator.clipboard.writeText(url).then(done,
+                () => showToast("Link set in the address bar"));
+        else showToast("Link set in the address bar");
+    });
+    document.getElementById("plotwrap").appendChild(btn);
+}
+
 /* ── Figure download ────────────────────────────────────────────────────── */
 
 function initDownloadButton() {
@@ -1659,34 +1811,36 @@ function initDownloadButton() {
 /* ── Hover tooltips ─────────────────────────────────────────────────────── */
 
 const SLIDER_TIPS = {
-    mu: "Mean μ of the latent distribution — for Bimodal, the two peaks " +
-        "sit at ±μ.",
-    sg: "Standard deviation σ — the width of the latent distribution.",
-    kT: "Temperature k_BT of the target: higher temperature flattens p*(x).",
-    u1: "Linear coefficient u₁ of the potential U(x): tilts the potential.",
-    u2: "Quadratic coefficient u₂: positive confines the density around " +
-        "x = 0; negative creates a double well.",
-    u3: "Cubic coefficient u₃: makes the potential asymmetric.",
-    u4: "Quartic coefficient u₄: confines the density at large |x| and " +
+    mu: "Mean μ of the latent distribution. For the bimodal distribution " +
+        "the two peaks are located at ±μ.",
+    sg: "Standard deviation σ of the latent distribution.",
+    kT: "Temperature k_BT of the target distribution. A higher temperature " +
+        "flattens p*(x).",
+    u1: "Linear coefficient u₁ of the potential U(x); it tilts the potential.",
+    u2: "Quadratic coefficient u₂. Positive values confine the density " +
+        "around x = 0; negative values produce a double well.",
+    u3: "Cubic coefficient u₃; it makes the potential asymmetric.",
+    u4: "Quartic coefficient u₄; it confines the density at large |x| and " +
         "keeps p*(x) normalisable.",
-    t0: "θ₀ — constant offset of the polynomial map.",
-    t1: "θ₁ — linear slope of the polynomial map.",
-    t2: "θ₂ — quadratic term; large values can make the map non-invertible.",
-    t3: "θ₃ — cubic term; large values can make the map non-invertible.",
-    sig_off:   "a — constant offset of the map: shifts the whole " +
+    t0: "θ₀, the constant term of the polynomial map.",
+    t1: "θ₁, the linear coefficient of the polynomial map.",
+    t2: "θ₂, the quadratic coefficient; large values can make the map " +
+        "non-invertible.",
+    t3: "θ₃, the cubic coefficient; large values can make the map " +
+        "non-invertible.",
+    sig_off:   "Constant offset a of the map; it shifts the whole distribution.",
+    sig_slope: "Linear slope b of the map; it stretches or compresses the " +
                "distribution.",
-    sig_slope: "b — linear slope of the map: stretches or compresses the " +
-               "distribution.",
-    rqs_B: "B — half-width of the spline interval [−B, B]; outside it the " +
-           "map is the identity.",
+    rqs_B: "Half-width B of the spline interval [−B, B]; outside this " +
+           "interval the map is the identity.",
 };
 for (let k = 0; k < 8; k++) {
-    SLIDER_TIPS[`w${k}`] = `w${k + 1} — weight (step height) of sigmoid ` +
-        `unit ${k + 1}: how much probability it moves.`;
-    SLIDER_TIPS[`c${k}`] = `c${k + 1} — centre of sigmoid unit ${k + 1}: ` +
-        `where in z the step happens.`;
-    SLIDER_TIPS[`s${k}`] = `s${k + 1} — width of sigmoid unit ${k + 1}: ` +
-        `small values give a sharp step.`;
+    SLIDER_TIPS[`w${k}`] = `Weight w${k + 1} (step height) of sigmoid unit ${k + 1}; it ` +
+        `determines how much probability the step transports.`;
+    SLIDER_TIPS[`c${k}`] = `Centre c${k + 1} of sigmoid unit ${k + 1}; it sets the position ` +
+        `of the step in z.`;
+    SLIDER_TIPS[`s${k}`] = `Width s${k + 1} of sigmoid unit ${k + 1}; small values produce ` +
+        `a sharp step.`;
 }
 for (let k = 0; k < 4; k++) {
     SLIDER_TIPS[`rqs_w${k}`] = `Relative width of spline bin ${k + 1} ` +
@@ -1705,8 +1859,8 @@ function applyTooltips() {
     for (const [key, text] of Object.entries(SLIDER_TIPS))
         if (sliders[key]) sliders[key].row.dataset.tip = text;
 
-    tip(UI.distSelect, "Choose the latent distribution p_z(z) — the simple, " +
-        "easy-to-sample density that the transformation reshapes.");
+    tip(UI.distSelect, "Latent distribution p_z(z): the simple, easily sampled density " +
+        "that the transformation reshapes.");
     tip(UI.showTargetCb, "Overlay the target Boltzmann density p*(x) in the " +
         "density panels.");
     tip(UI.showExactCb, "Draw the exact transformation x*(z) that maps " +
@@ -1714,10 +1868,8 @@ function applyTooltips() {
         "distributions.");
     tip(UI.transformSelect, "Choose the family of the transformation " +
         "x = f_θ(z).");
-    tip(UI.kRadio, "Number of sigmoid units K — more units make the map " +
-        "more flexible.");
-    tip(UI.kRqsRadio, "Number of spline bins K — more bins make the map " +
-        "more flexible.");
+    tip(UI.kRadio, "Number of sigmoid units K; more units make the map more flexible.");
+    tip(UI.kRqsRadio, "Number of spline bins K; more bins make the map more flexible.");
     tip(UI.showMapCb, "Draw guide lines that show how individual points z " +
         "travel through the map to x = f_θ(z).");
     tip(UI.nMapInput, "Number of mapping lines to draw (up to 100).");
@@ -1725,21 +1877,21 @@ function applyTooltips() {
     tip(UI.nEntryInput, "Number of points drawn by 'Sample!' and 'Data'.");
     tip(UI.showDataCb, "Show the generated example data as a histogram in " +
         "the 'Transformed x' panel.");
-    tip(UI.showIwCb, "Show the importance weights w(x) = p*(x)/p_x(x) and " +
-        "the effective sample size N_eff — a measure of how well the flow " +
-        "matches the target.");
+    tip(UI.showIwCb, "Show the importance weights w(x) = p*(x)/p_x(x) and the " +
+        "effective sample size N_eff, a measure of the agreement between " +
+        "flow and target.");
     tip(UI.optSelect, "Gradient-descent variant used to update the " +
         "parameters.");
     tip(UI.nEpochsInput, "Number of training epochs (gradient steps).");
-    tip(UI.lrInput, "Learning rate — the step size of the optimiser. " +
-        "Reduce it if the loss diverges.");
+    tip(UI.lrInput, "Learning rate, the step size of the optimiser. Reduce it if the " +
+        "loss diverges.");
     tip(UI.nBatchInput, "Number of latent samples per epoch used to " +
         "estimate the loss and its gradient.");
-    tip(UI.resampleCb, "Draw a fresh latent batch every epoch — otherwise " +
-        "the same batch is reused for the whole training.");
+    tip(UI.resampleCb, "Draw a fresh latent batch every epoch; otherwise the same batch " +
+        "is reused for the whole training.");
     tip(UI.strideInput, "Update the figure every this many epochs.");
-    tip(UI.delayInput, "Pause between figure updates, in milliseconds — " +
-        "increase it to watch the training in slow motion.");
+    tip(UI.delayInput, "Pause between figure updates, in milliseconds. Larger values " +
+        "slow the visualisation down.");
     if (UI.modeRadio) {
         const labs = UI.modeRadio.root.querySelectorAll("label");
         if (labs[0]) labs[0].dataset.tip = "Minimise ⟨U/k_BT − log|J|⟩ over " +
@@ -1752,9 +1904,8 @@ function applyTooltips() {
 
     /* static controls declared in the HTML */
     const rescaleLabel = UI.rescaleCb ? UI.rescaleCb.closest("label") : null;
-    if (rescaleLabel) rescaleLabel.dataset.tip = "Recompute the axis ranges " +
-        "automatically after every change — untick to freeze them for " +
-        "comparisons.";
+    if (rescaleLabel) rescaleLabel.dataset.tip = "Recompute the axis ranges automatically after every change. " +
+        "Deactivate to keep the axes fixed for comparisons.";
     for (const elTitled of document.querySelectorAll("#panel [title]")) {
         elTitled.dataset.tip = elTitled.title;
         elTitled.removeAttribute("title");
@@ -1843,6 +1994,14 @@ function init() {
 
     setupFullscreenButton();
     initDownloadButton();
+    initShareButton();
+    applyStateFromHash();
+
+    if ("serviceWorker" in navigator &&
+        (window.location.protocol === "https:" ||
+         window.location.hostname === "localhost" ||
+         window.location.hostname === "127.0.0.1"))
+        navigator.serviceWorker.register("sw.js").catch(() => {});
 
     drawFigure();
     setInterval(tick, 30);

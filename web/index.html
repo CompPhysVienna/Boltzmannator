@@ -11,7 +11,9 @@
 <meta name="apple-mobile-web-app-title" content="Boltzmannator">
 <meta name="theme-color" content="#1565C0">
 <title>Boltzmannator</title>
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="img/icon-192.png">
+<link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 <div id="app">
@@ -20,7 +22,7 @@
   <aside id="panel">
     <div id="header-row">
       <img id="header-img" src="img/Boltzmannator_title.png" alt="Boltzmannator"
-           data-tip="The Boltzmannator shows how a normalising flow reshapes a simple latent distribution into a target Boltzmann distribution — and learns the transformation by training.">
+           data-tip="The Boltzmannator shows how a normalising flow reshapes a simple latent distribution into a target Boltzmann distribution and how this transformation is learned by training.">
       <div id="pic-dots"></div>
     </div>
 
@@ -54,7 +56,7 @@
         </svg>
       </button>
       <button class="tab tab-icon" id="btn-help" aria-label="Help"
-              data-tip="Help — what you can do with this app">
+              data-tip="Help: overview of the controls and suggested experiments">
         <span class="qmark">?</span>
       </button>
     </nav>
@@ -98,11 +100,12 @@
         <div id="overlay-scroll">
 
           <article id="doc-theory" class="doc hidden">
-            <h2>Boltzmann generators &amp; normalising flows</h2>
-            <p class="lead">This app shows, in one dimension, the idea behind
-            <em>Boltzmann generators</em>: learn an invertible transformation
-            that turns a simple, easy-to-sample distribution into the
-            Boltzmann distribution of a physical system.</p>
+            <h2>Boltzmann generators and normalising flows</h2>
+            <p class="lead">This application illustrates, in one dimension,
+            the principle of <em>Boltzmann generators</em>: an invertible
+            transformation is trained to map a simple, easily sampled
+            distribution onto the Boltzmann distribution of a physical
+            system.</p>
 
             <h3>1&ensp;&middot;&ensp;The sampling problem</h3>
             <p>In equilibrium statistical mechanics a configuration
@@ -110,18 +113,19 @@
             <p class="eq">p<sup>*</sup>(x) =
               e<sup>&minus;U(x)/k<sub>B</sub>T</sup> / Z ,</p>
             <p>where <i>U</i>(<i>x</i>) is the potential energy,
-            <i>k</i><sub>B</sub><i>T</i> the temperature and <i>Z</i> the
-            (usually unknown) partition function. When <i>U</i> has several
-            deep wells, p<sup>*</sup> concentrates on well-separated regions,
-            and molecular dynamics or Monte&nbsp;Carlo need very long runs to
-            hop between them. A Boltzmann generator sidesteps the problem: it
-            produces <em>independent</em> samples in one shot, by transforming
-            samples of a simple distribution.</p>
+            <i>k</i><sub>B</sub><i>T</i> the thermal energy and <i>Z</i> the
+            partition function, which is generally unknown. If <i>U</i> has
+            several deep wells, p<sup>*</sup> is concentrated in
+            well-separated regions, and molecular dynamics or Monte&nbsp;Carlo
+            simulations require long trajectories to move between them. A
+            Boltzmann generator avoids this problem: it produces
+            statistically independent samples by transforming samples of a
+            simple distribution.</p>
 
             <h3>2&ensp;&middot;&ensp;Change of variables</h3>
-            <p>Start from a latent variable <i>z</i> with a simple density
+            <p>Consider a latent variable <i>z</i> with a simple density
             <span class="cdot" style="background:#1565C0"></span>&nbsp;
-            p<sub>z</sub>(z) (top-left panel) and apply an invertible,
+            p<sub>z</sub>(z) (top left panel) and an invertible,
             differentiable map
             <span class="cdot" style="background:#C62828"></span>&nbsp;
             <i>x</i> = f<sub>&theta;</sub>(z) (centre panel). The transformed
@@ -130,66 +134,78 @@
             <p class="eq">p<sub>x</sub>(x) = p<sub>z</sub>(z)
               |df<sub>&theta;</sub>/dz|<sup>&minus;1</sup> ,&emsp;
               z = f<sub>&theta;</sub><sup>&minus;1</sup>(x) .</p>
-            <p>Where the map <em>stretches</em> (Jacobian
-            |J| = |df<sub>&theta;</sub>/dz| &gt; 1) probability is spread out
-            and the density drops; where it <em>compresses</em>, the density
-            rises. The bottom-left panel shows exactly this factor
-            |J|<sup>&minus;1</sup>. Because f<sub>&theta;</sub> is invertible,
-            p<sub>x</sub> is automatically normalised &mdash; this
+            <p>Where the map expands intervals (Jacobian
+            |J| = |df<sub>&theta;</sub>/dz| &gt; 1), probability is spread
+            over a larger range and the density decreases; where the map
+            contracts, the density increases. The bottom left panel shows the
+            factor |J|<sup>&minus;1</sup>. Since f<sub>&theta;</sub> is
+            invertible, p<sub>x</sub> is normalised by construction. This
             construction is called a <em>normalising flow</em>.</p>
 
             <h3>3&ensp;&middot;&ensp;Training the flow</h3>
-            <p>The parameters &theta; are optimised by gradient descent so
-            that p<sub>x</sub> matches the target
+            <p>The parameters &theta; are adjusted by gradient descent such
+            that p<sub>x</sub> approaches the target
             <span class="cdot" style="background:#FF8F00"></span>&nbsp;
-            p<sup>*</sup>. The app offers the two standard objectives:</p>
-            <p><b>Energy-based</b> (reverse Kullback&ndash;Leibler
-            divergence). Minimise</p>
+            p<sup>*</sup>. Two standard objectives are available.</p>
+            <p><b>Energy-based training</b> minimises the reverse
+            Kullback&ndash;Leibler divergence,</p>
             <p class="eq">L =
               &lang; U(f<sub>&theta;</sub>(z))/k<sub>B</sub>T &minus;
               log&thinsp;|J(z)| &rang;<sub>z&sim;p<sub>z</sub></sub>
               = KL(p<sub>x</sub>&thinsp;&Vert;&thinsp;p<sup>*</sup>) + const .</p>
-            <p>Only the energy function is needed &mdash; no samples of the
-            target. The first term pulls the samples into the low-energy
-            wells; the second (an entropy) keeps the distribution from
-            collapsing onto the minimum.</p>
-            <p><b>Example-based</b> (forward KL, maximum likelihood). Given
-            data points x<sub>i</sub> &sim; p<sup>*</sup>, minimise the
-            negative log-likelihood</p>
+            <p>Only the potential energy function is required; samples of the
+            target are not needed. The first term drives the samples towards
+            low energies; the second term, an entropy, prevents the
+            distribution from collapsing onto the energy minimum.</p>
+            <p><b>Example-based training</b> minimises the negative
+            log-likelihood of data points x<sub>i</sub> distributed according
+            to p<sup>*</sup> (forward Kullback&ndash;Leibler divergence),</p>
             <p class="eq">NLL = &lang; &minus;log p<sub>z</sub>(
               f<sub>&theta;</sub><sup>&minus;1</sup>(x)) +
               log&thinsp;|J| &rang;<sub>data</sub>
               = KL(p<sup>*</sup>&thinsp;&Vert;&thinsp;p<sub>x</sub>) + const .</p>
             <p>The loss panel shows both contributions separately (blue and
             orange) together with their sum (dark line).</p>
+            <p>While the target is displayed, the figure also reports the
+            variational free energy of the flow,
+            &beta;F<sub>flow</sub> = &lang;ln p<sub>z</sub>&rang; +
+            &lang;U/k<sub>B</sub>T &minus; ln&thinsp;|J|&rang;, together with
+            the exact value &beta;F<sub>exact</sub> = &minus;ln Z. According
+            to the Gibbs&ndash;Bogoliubov inequality,
+            F<sub>flow</sub> &ge; F<sub>exact</sub>, and the difference
+            equals the Kullback&ndash;Leibler divergence
+            KL(p<sub>x</sub>&thinsp;&Vert;&thinsp;p<sup>*</sup>), which
+            vanishes exactly when the flow reproduces the target.</p>
 
             <h3>4&ensp;&middot;&ensp;Reweighting</h3>
-            <p>A trained flow is close to, but not exactly, the target.
-            Averages can nevertheless be computed <em>exactly</em> by
-            importance sampling: each sample x is weighted with</p>
+            <p>A trained flow approximates the target but does not reproduce
+            it exactly. Exact averages can nevertheless be obtained by
+            importance sampling, in which each sample x is weighted with</p>
             <p class="eq">w(x) = p<sup>*</sup>(x) / p<sub>x</sub>(x) ,&emsp;
               &lang;A&rang; = &Sigma; w<sub>i</sub>A(x<sub>i</sub>) /
               &Sigma; w<sub>i</sub> .</p>
             <p>The effective sample size
             N<sub>eff</sub> = (&Sigma;w)<sup>2</sup>/&Sigma;w<sup>2</sup>
-            measures the overlap between p<sub>x</sub> and p<sup>*</sup>
-            (tick <em>Show importance weights</em> after sampling).</p>
+            quantifies the overlap between p<sub>x</sub> and p<sup>*</sup>
+            (activate <em>Show importance weights</em> after sampling).</p>
 
             <h3>5&ensp;&middot;&ensp;The transformation families</h3>
-            <p><b>Polynomial</b> maps are simple but not guaranteed to be
-            invertible &mdash; the app marks turning points and falls back to
-            a histogram estimate of p<sub>x</sub>. The
+            <p><b>Polynomial</b> maps are simple but not necessarily
+            invertible; the application marks turning points and estimates
+            p<sub>x</sub> by a kernel density estimate in this case. The
             <b>single-layer perceptron</b> adds K sigmoid steps with positive
-            weights to a rising line, so it is strictly monotone, hence
-            invertible. The <b>rational-quadratic spline</b> is a flexible
-            monotone spline on [&minus;B,&thinsp;B], the building block of
-            modern neural spline flows.</p>
-            <p>In one dimension an exact transformation always exists,
-            x<sup>*</sup>(z) = F<sup>*&minus;1</sup>(F<sub>z</sub>(z)), built
-            from the two cumulative distributions (tick <em>Show exact
-            transformation</em>). The real power of flows shows in many
-            dimensions, where no such formula exists and the map must be
-            learned.</p>
+            weights to an increasing linear function and is therefore
+            strictly monotonic and invertible. The
+            <b>rational-quadratic spline</b> is a flexible monotonic spline
+            on [&minus;B,&thinsp;B] and is the building block of neural
+            spline flows.</p>
+            <p>In one dimension an exact transformation exists,
+            x<sup>*</sup>(z) = F<sup>*&minus;1</sup>(F<sub>z</sub>(z)),
+            constructed from the two cumulative distribution functions
+            (<em>Show exact transformation</em>). In higher dimensions no
+            such formula exists and the transformation must be learned; this
+            is the setting in which normalising flows are applied in
+            practice.</p>
 
             <h3>Further reading</h3>
             <p class="refs">
@@ -208,91 +224,110 @@
 
           <article id="doc-help" class="doc hidden">
             <h2>What you can do here</h2>
-            <p class="lead">Shape a simple latent density into a target
-            Boltzmann distribution &mdash; by hand with the sliders, or by
-            training. Hover over any control for a short explanation of what
-            it does.</p>
+            <p class="lead">A simple latent density is transformed into a
+            target Boltzmann distribution, either manually with the sliders
+            or by training. Hovering over a control displays a short
+            explanation.</p>
 
             <h3>The figure</h3>
             <ul>
               <li><span class="cdot" style="background:#1565C0"></span>
-              <b>Latent density</b> p<sub>z</sub>(z) &mdash; top left; choose
-              and shape it on the <em>Densities</em> tab.</li>
+              <b>Latent density</b> p<sub>z</sub>(z) (top left): selected and
+              shaped on the <em>Densities</em> tab.</li>
               <li><span class="cdot" style="background:#C62828"></span>
-              <b>Transformation</b> x = f<sub>&theta;</sub>(z) &mdash;
-              centre; orange dots appear where it is not invertible.</li>
+              <b>Transformation</b> x = f<sub>&theta;</sub>(z) (centre):
+              orange dots mark points where it is not invertible.</li>
               <li><span class="cdot" style="background:#C62828"></span>
-              <b>Jacobian</b> |J|<sup>&minus;1</sup> &mdash; bottom left; the
-              local stretch factor that reshapes the density.</li>
+              <b>Jacobian</b> |J|<sup>&minus;1</sup> (bottom left): the local
+              stretch factor that reshapes the density.</li>
               <li><span class="cdot" style="background:#2E7D32"></span>
-              <b>Transformed density</b> p<sub>x</sub>(x) &mdash; drawn
-              sideways next to the map, sharing its x-axis.</li>
+              <b>Transformed density</b> p<sub>x</sub>(x): drawn sideways
+              next to the map, sharing its x axis.</li>
               <li><span class="cdot" style="background:#FF8F00"></span>
-              <b>Target</b> p<sup>*</sup>(x) &mdash; overlaid when <em>Show
-              target</em> is ticked (automatically during training).</li>
+              <b>Target</b> p<sup>*</sup>(x): overlaid when <em>Show
+              target</em> is active (automatically during training).</li>
               <li>Right column: histograms of the latent and transformed
               <b>samples</b>, and the <b>training loss</b>.</li>
             </ul>
 
             <h3>Densities tab</h3>
-            <p>Pick the latent distribution and set its mean and width.
-            Define the target p<sup>*</sup>(x) &prop;
-            e<sup>&minus;U(x)/kT</sup> through the coefficients of the
+            <p>The latent distribution and its mean and width are chosen
+            here. The target p<sup>*</sup>(x) &prop;
+            e<sup>&minus;U(x)/kT</sup> is defined by the coefficients of the
             potential U(x) = u&#8321;x + u&#8322;x&sup2; + u&#8323;x&sup3; +
             u&#8324;x&#8308; and the temperature kT. <em>Show exact
-            transformation</em> draws the map that would reproduce the target
-            perfectly.</p>
+            transformation</em> displays the map that reproduces the target
+            exactly.</p>
 
             <h3>Map tab</h3>
-            <p>Choose the transformation family and move its parameters
-            &mdash; every slider updates the figure live. <em>Show mapping
-            lines</em> visualises how individual points z travel to
+            <p>The transformation family and its parameters are set here;
+            the figure is updated continuously. <em>Show mapping lines</em>
+            indicates how individual points z are mapped to
             x = f<sub>&theta;</sub>(z). <em>Defaults</em> restores the
-            identity map, <em>Randomize</em> throws the dice.</p>
+            identity map; <em>Randomize</em> assigns random parameter
+            values.</p>
 
             <h3>Training tab</h3>
-            <p><em>Sample!</em> draws N latent points and pushes them through
-            the map; <em>Data</em> generates example points from the target.
-            Choose the objective (energy-based needs only the potential,
-            example-based needs the data), an optimiser, the number of
-            epochs, learning rate and batch size, then press
-            <em>Train!</em>. <em>Every</em>/<em>Delay</em> control how often
-            the figure updates &mdash; increase the delay to watch the flow
-            deform in slow motion. <em>Stop</em> interrupts;
+            <p><em>Sample!</em> draws N latent points and passes them through
+            the map; <em>Data</em> generates example points from the target
+            distribution. The objective (energy-based requires only the
+            potential, example-based requires the data), the optimiser, the
+            number of epochs, the learning rate and the batch size are
+            selected here. <em>Every</em> and <em>Delay</em> control the
+            frequency of figure updates; a larger delay slows the
+            visualisation. <em>Stop</em> interrupts a running training;
             <em>Reset training</em> clears the loss history and restores the
             identity map.</p>
 
             <h3>Things to try</h3>
             <ol>
-              <li><b>Double well.</b> On <em>Densities</em>, set
-              u&#8322; = &minus;2 and u&#8324; &asymp; 0.3, tick <em>Show
-              target</em>, then <em>Train!</em> &mdash; watch one Gaussian
-              split into two peaks. <button class="try-btn" data-preset="double-well">Set up &rarr;</button></li>
+              <li><b>Double well.</b> Set u&#8322; = &minus;2 and
+              u&#8324; &asymp; 0.3 on the <em>Densities</em> tab, activate
+              <em>Show target</em> and press <em>Train!</em>. The initially
+              unimodal density splits into two peaks.
+              <button class="try-btn" data-preset="double-well">Set up
+              &rarr;</button></li>
               <li><b>Slow motion.</b> Set <em>Delay</em> to 200&nbsp;ms and
-              <em>Every</em> to 1 to see every single epoch. <button class="try-btn" data-preset="slow-motion">Set up &rarr;</button></li>
-              <li><b>Break invertibility.</b> Choose the polynomial map and
-              push &theta;&#8322; or &theta;&#8323; until the orange dots
-              appear &mdash; the density then needs a histogram estimate
-              (KDE). <button class="try-btn" data-preset="non-invertible">Set up &rarr;</button></li>
-              <li><b>Bimodal latent.</b> Match a bimodal latent to a
-              double-well target &mdash; a much easier job for the map. <button class="try-btn" data-preset="bimodal">Set up &rarr;</button></li>
-              <li><b>Compare optimisers.</b> Train the same problem with SGD
-              and with Adam at different learning rates. <button class="try-btn" data-preset="sgd">Set up &rarr;</button></li>
-              <li><b>Learn from data.</b> Press <em>Data</em>, switch to
-              <em>Example-based</em>, and train from samples instead of
-              energies. <button class="try-btn" data-preset="example">Set up &rarr;</button></li>
-              <li><b>Check the quality.</b> After training, press
-              <em>Sample!</em> and tick <em>Show importance weights</em>:
-              N<sub>eff</sub> near 100% means p<sub>x</sub> &asymp;
-              p<sup>*</sup>. <button class="try-btn" data-preset="weights">Set up &rarr;</button></li>
+              <em>Every</em> to 1 to display every epoch.
+              <button class="try-btn" data-preset="slow-motion">Set up
+              &rarr;</button></li>
+              <li><b>Non-invertible map.</b> Select the polynomial map and
+              increase &theta;&#8322; or &theta;&#8323; until turning points
+              appear; the density is then estimated by a kernel density
+              estimate (KDE).
+              <button class="try-btn" data-preset="non-invertible">Set up
+              &rarr;</button></li>
+              <li><b>Bimodal latent distribution.</b> A bimodal latent
+              density matched to a double-well target requires a much
+              simpler transformation.
+              <button class="try-btn" data-preset="bimodal">Set up
+              &rarr;</button></li>
+              <li><b>Optimiser comparison.</b> Train the same problem with
+              SGD and with Adam at different learning rates.
+              <button class="try-btn" data-preset="sgd">Set up
+              &rarr;</button></li>
+              <li><b>Learning from data.</b> Press <em>Data</em>, select
+              <em>Example-based</em> and train from samples instead of
+              energies.
+              <button class="try-btn" data-preset="example">Set up
+              &rarr;</button></li>
+              <li><b>Quality control.</b> After training, press
+              <em>Sample!</em> and activate <em>Show importance weights</em>;
+              N<sub>eff</sub> close to 100% indicates p<sub>x</sub> &asymp;
+              p<sup>*</sup>.
+              <button class="try-btn" data-preset="weights">Set up
+              &rarr;</button></li>
             </ol>
 
             <h3>General</h3>
-            <p><em>Auto-rescale</em> recomputes the axes after every change
-            &mdash; untick it to freeze them for comparisons. The switch at
-            the bottom toggles dark mode, and the dots next to the portrait
-            change the picture. <em>Reset</em> restores the whole app to its
-            initial state.</p>
+            <p><em>Auto-rescale</em> recomputes the axis ranges after every
+            change; deactivate it to keep the axes fixed for comparisons.
+            The switch at the bottom toggles between light and dark mode;
+            the dots next to the portrait select the header picture. The
+            buttons above the figure save the current figure as a PNG image
+            and copy a link that reproduces the current settings.
+            <em>Reset</em> restores the initial state of the
+            application.</p>
           </article>
 
         </div>
@@ -301,8 +336,8 @@
   </main>
 
 </div>
-<script src="js/math.js?v=11"></script>
-<script src="js/plots.js?v=11"></script>
-<script src="js/app.js?v=11"></script>
+<script src="js/math.js?v=12"></script>
+<script src="js/plots.js?v=12"></script>
+<script src="js/app.js?v=12"></script>
 </body>
 </html>

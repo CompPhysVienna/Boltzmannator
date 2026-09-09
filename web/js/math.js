@@ -659,6 +659,215 @@ function lossAndGradFdExample(params, xData, latent, ttype, K, eps = 1e-4) {
     return { total, ener, entr, grad };
 }
 
+/* ── Analytic RQS gradients ─────────────────────────────────────────────
+   Forward-mode differentiation of the rational-quadratic spline w.r.t. its
+   raw parameters p = [B_raw, w_raw(K), h_raw(K), d_raw(K+1)].  Replaces the
+   finite-difference gradients for training.                              */
+
+/* knots plus their gradients: each knot quantity carries a Float64Array(P)
+   of partial derivatives w.r.t. the raw parameter vector */
+function rqsKnotsWithGrads(params, K) {
+    const P = params.length;
+    const zero = () => new Float64Array(P);
+    const p0 = params[0];
+    const B = Math.max(p0, 0.5), W = 2.0 * B;
+    const dB0 = p0 >= 0.5 ? 1.0 : 0.0;              // dB/dp[0]
+    const softmax = (raw) => {
+        let mx = -Infinity;
+        for (const v of raw) if (v > mx) mx = v;
+        const e = raw.map((v) => Math.exp(v - mx));
+        const s = e.reduce((a, b) => a + b, 0);
+        return e.map((v) => v / s);
+    };
+    const wraw = [], hraw = [];
+    for (let j = 0; j < K; j++) {
+        wraw.push(params[1 + j]);
+        hraw.push(params[1 + K + j]);
+    }
+    const sw = softmax(wraw), sh = softmax(hraw);
+    const widths = sw.map((v) => W * v), heights = sh.map((v) => W * v);
+    const dwidths = [], dheights = [];
+    for (let j = 0; j < K; j++) {
+        const gw = zero(), gh = zero();
+        gw[0] = 2.0 * dB0 * sw[j];                  // via W = 2B
+        gh[0] = 2.0 * dB0 * sh[j];
+        for (let m = 0; m < K; m++) {
+            gw[1 + m]     = W * sw[j] * ((j === m ? 1 : 0) - sw[m]);
+            gh[1 + K + m] = W * sh[j] * ((j === m ? 1 : 0) - sh[m]);
+        }
+        dwidths.push(gw); dheights.push(gh);
+    }
+    const derivs = [], dderivs = [];
+    for (let k = 0; k <= K; k++) {
+        const dr = params[2 * K + 1 + k];
+        const d = Math.exp(clampNum(dr, -6.0, 6.0));
+        derivs.push(d);
+        const g = zero();
+        if (Math.abs(dr) < 6.0) g[2 * K + 1 + k] = d;
+        dderivs.push(g);
+    }
+    const xk = [-B], yk = [-B];
+    const dxk = [zero()], dyk = [zero()];
+    dxk[0][0] = -dB0; dyk[0][0] = -dB0;
+    for (let k = 0; k < K; k++) {
+        xk.push(xk[k] + widths[k]);
+        yk.push(yk[k] + heights[k]);
+        const gx = dxk[k].slice(), gy = dyk[k].slice();
+        for (let m = 0; m < P; m++) {
+            gx[m] += dwidths[k][m];
+            gy[m] += dheights[k][m];
+        }
+        dxk.push(gx); dyk.push(gy);
+    }
+    return { B, widths, heights, derivs, xk, yk,
+             dwidths, dheights, dderivs, dxk, dyk, P };
+}
+
+/* forward pass with gradients: x, J, dX/dp, dJ/dp (n×P, flat) and dJ/dz */
+function rqsForwardWithGrads(z, kg) {
+    const { B, widths, heights, derivs, xk, yk,
+            dwidths, dheights, dderivs, dxk, dyk, P } = kg;
+    const K = widths.length, n = z.length;
+    const x = new Float64Array(n), J = new Float64Array(n);
+    const dX = new Float64Array(n * P), dJ = new Float64Array(n * P);
+    const dJdz = new Float64Array(n);
+    const inner = xk.slice(1, K);
+    for (let i = 0; i < n; i++) {
+        const zi = z[i];
+        if (zi <= -B || zi >= B) { x[i] = zi; J[i] = 1.0; continue; }
+        const k = clampNum(searchsortedLeft(inner, zi), 0, K - 1);
+        const dx_ = widths[k], dy_ = heights[k];
+        const da = derivs[k], db = derivs[k + 1];
+        const gDx = dwidths[k], gDy = dheights[k];
+        const gXk = dxk[k], gYk = dyk[k];
+        const gDa = dderivs[k], gDb = dderivs[k + 1];
+        const s = dy_ / dx_;
+        const xi = clampNum((zi - xk[k]) / dx_, 0.0, 1.0), xi1 = 1.0 - xi;
+        const u = xi * xi1;
+        const g = db + da - 2.0 * s;
+        const den = s + g * u;
+        const numx = s * xi * xi + da * u;
+        const numJ = db * xi * xi + 2.0 * s * u + da * xi1 * xi1;
+        x[i] = yk[k] + dy_ * numx / den;
+        J[i] = s * s * numJ / (den * den);
+        /* dJ/dz for the example-based objective */
+        const numJp = 2.0 * db * xi + 2.0 * s * (1.0 - 2.0 * xi)
+                      - 2.0 * da * xi1;
+        const denp = g * (1.0 - 2.0 * xi);
+        dJdz[i] = s * s * (numJp * den - 2.0 * numJ * denp)
+                  / (den * den * den * dx_);
+        for (let m = 0; m < P; m++) {
+            const dxi  = (-gXk[m] - xi * gDx[m]) / dx_;
+            const du   = (1.0 - 2.0 * xi) * dxi;
+            const ds   = (gDy[m] - s * gDx[m]) / dx_;
+            const dg   = gDb[m] + gDa[m] - 2.0 * ds;
+            const dden = ds + u * dg + g * du;
+            const dnumx = xi * xi * ds + 2.0 * s * xi * dxi
+                          + u * gDa[m] + da * du;
+            dX[i * P + m] = gYk[m] + (numx / den) * gDy[m]
+                + dy_ * (dnumx * den - numx * dden) / (den * den);
+            const dnumJ = xi * xi * gDb[m] + 2.0 * db * xi * dxi
+                + 2.0 * u * ds + 2.0 * s * du
+                + xi1 * xi1 * gDa[m] - 2.0 * xi1 * da * dxi;
+            dJ[i * P + m] = 2.0 * s * numJ / (den * den) * ds
+                + s * s * dnumJ / (den * den)
+                - 2.0 * s * s * numJ / (den * den * den) * dden;
+        }
+    }
+    return { x, J, dX, dJ, dJdz };
+}
+
+/* analytic gradient of the energy-based loss for the RQS transform */
+function rqsGradientEnergy(params, zBatch, target, K) {
+    const kg = rqsKnotsWithGrads(params, K);
+    const { x, J, dX, dJ } = rqsForwardWithGrads(zBatch, kg);
+    const n = zBatch.length, P = kg.P;
+    const { kT, u1, u2, u3, u4 } = target;
+    const grad = new Float64Array(P);
+    for (let m = 0; m < P; m++) {
+        let sum = 0, cnt = 0;
+        for (let i = 0; i < n; i++) {
+            const Ji = J[i];
+            const dUdx = u1 + 2 * u2 * x[i] + 3 * u3 * x[i] * x[i]
+                         + 4 * u4 * x[i] * x[i] * x[i];
+            if (!Number.isFinite(Ji) || !Number.isFinite(dUdx)
+                || Math.abs(Ji) <= 1e-10) continue;
+            const v = dUdx * dX[i * P + m] / kT - dJ[i * P + m] / Ji;
+            if (Number.isFinite(v)) { sum += v; cnt++; }
+        }
+        grad[m] = cnt > 0 ? sum / cnt : 0;
+    }
+    return grad;
+}
+
+/* score d/dz log p_z(z) — shared by the example-based gradients */
+function latentScore(z, mu, sigma, dist) {
+    const n = z.length, score = new Float64Array(n);
+    if (dist === "Gaussian") {
+        for (let i = 0; i < n; i++) score[i] = -(z[i] - mu) / (sigma * sigma);
+    } else if (dist === "Laplace") {
+        const sl = sigma / SQRT2;
+        for (let i = 0; i < n; i++) score[i] = -Math.sign(z[i] - mu) / sl;
+    } else if (dist === "Cauchy") {
+        for (let i = 0; i < n; i++) {
+            const d = z[i] - mu;
+            score[i] = -2 * d / (sigma * sigma + d * d);
+        }
+    } else if (dist === "Bimodal") {
+        const sb = sigma * 0.6;   // kept as in the Python source
+        for (let i = 0; i < n; i++) {
+            const a = (z[i] + mu) / sb, b = (z[i] - mu) / sb;
+            const lp1 = -0.5 * a * a, lp2 = -0.5 * b * b;
+            const m = Math.max(lp1, lp2);
+            const lse = m + Math.log(Math.exp(lp1 - m) + Math.exp(lp2 - m));
+            score[i] = -(z[i] + mu) / (sb * sb) * Math.exp(lp1 - lse)
+                       - (z[i] - mu) / (sb * sb) * Math.exp(lp2 - lse);
+        }
+    } else {
+        const h = 1e-5;
+        const zp = new Float64Array(n), zm = new Float64Array(n);
+        for (let i = 0; i < n; i++) { zp[i] = z[i] + h; zm[i] = z[i] - h; }
+        const lp = logLatentPdf(zp, mu, sigma, dist);
+        const lm = logLatentPdf(zm, mu, sigma, dist);
+        for (let i = 0; i < n; i++) score[i] = (lp[i] - lm[i]) / (2 * h);
+    }
+    return score;
+}
+
+/* example-based loss + analytic gradient for the RQS transform */
+function rqsLossAndGradExample(params, xData, latent, K) {
+    const { mu, sigma, dist } = latent;
+    const z = invertTransformParams(xData, params, T_RQS, K);
+    const kg = rqsKnotsWithGrads(params, K);
+    const { J, dX, dJ, dJdz } = rqsForwardWithGrads(z, kg);
+    const n = z.length, P = kg.P;
+    const logPz = logLatentPdf(z, mu, sigma, dist);
+    const ok = new Uint8Array(n);
+    let sT = 0, sE = 0, sS = 0, cnt = 0;
+    for (let i = 0; i < n; i++) {
+        const Jabs = Math.abs(J[i]);
+        ok[i] = Jabs > 1e-10 ? 1 : 0;
+        const logJ = Jabs > 1e-300 ? Math.log(Jabs + 1e-300) : -700.0;
+        const v = -logPz[i] + logJ;
+        if (Number.isFinite(v)) { sT += v; sE += -logPz[i]; sS += logJ; cnt++; }
+    }
+    if (cnt === 0)
+        return { total: NaN, ener: NaN, entr: NaN, grad: new Float64Array(P) };
+    const score = latentScore(z, mu, sigma, dist);
+    const grad = new Float64Array(P);
+    for (let m = 0; m < P; m++) {
+        let sum = 0, cm = 0;
+        for (let i = 0; i < n; i++) {
+            if (!ok[i]) continue;
+            const alpha = (score[i] - dJdz[i] / J[i]) / J[i];
+            const v = alpha * dX[i * P + m] + dJ[i * P + m] / J[i];
+            if (Number.isFinite(v)) { sum += v; cm++; }
+        }
+        grad[m] = cm > 0 ? sum / cm : 0;
+    }
+    return { total: sT / cnt, ener: sE / cnt, entr: sS / cnt, grad };
+}
+
 function clipParams(params, ttype, K) {
     const out = params.slice();
     if (ttype === T_SLP) {
