@@ -1010,9 +1010,9 @@ function drawFigure() {
         x: xf(cx[0]), y: yf(cy[0]),
         w: xf(cx[1]) - xf(cx[0]), h: yf(cy[1]) - yf(cy[0]) });
     const outerCols = splitCells(0.055, 0.975, [3.5, 2], 0.22);
-    const leftRows  = splitCells(0.045, 0.935, [1, 3, 1], 0.28);
+    const leftRows  = splitCells(0.066, 0.935, [1, 3, 1], 0.28);
     const leftCols  = splitCells(outerCols[0][0], outerCols[0][1], [3, 1], 0.06);
-    const rightRows = splitCells(0.045, 0.935, [1, 1, 1], 0.55);
+    const rightRows = splitCells(0.066, 0.935, [1, 1, 1], 0.55);
 
     const axTop   = new Axes(ctx, rect(leftCols[0], leftRows[0]), theme);
     const axMain  = new Axes(ctx, rect(leftCols[0], leftRows[1]), theme);
@@ -1488,10 +1488,10 @@ function drawFigure() {
                     let cx0 = xf(leftCols[0][0]);
                     for (const part of parts) {
                         const w = measureRich(ctx, part, rSize);
-                        drawRich(ctx, part, cx0, 26,
+                        drawRich(ctx, part, cx0, 37,
                             { size: rSize, align: "left",
                               color: S.dark ? "#b9b9c2" : "#555555" });
-                        feRects.push({ x: cx0, y: 8, w, h: 24 });
+                        feRects.push({ x: cx0, y: 19, w, h: 26 });
                         cx0 += w + 30;
                     }
                 }
