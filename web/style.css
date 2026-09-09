@@ -11,6 +11,8 @@
   --muted:         #6b6b74;
   --faint:         #9a9aa2;
   --tabs-bg:       #e2e2ea;
+  --tab-bg:        #fafafc;
+  --tab-border:    #d3d3dc;
   --tab-text:      #555;
   --field-bg:      #ffffff;
   --field-border:  #d4d4dc;
@@ -29,6 +31,8 @@ html.dark {
   --muted:         #a0a0a8;
   --faint:         #77777f;
   --tabs-bg:       #3a3a42;
+  --tab-bg:        #2d2d34;
+  --tab-border:    #4c4c56;
   --tab-text:      #b9b9c2;
   --field-bg:      #2e2e35;
   --field-border:  #46464f;
@@ -100,14 +104,17 @@ html, body {
 .tab {
   flex: 1 1 0; display: inline-flex; align-items: center;
   justify-content: center; gap: 6px;
-  min-height: 34px; border: none; border-radius: 8px;
-  background: transparent; color: var(--tab-text);
+  min-height: 34px; border-radius: 8px;
+  background: var(--tab-bg); border: 1px solid var(--tab-border);
+  box-shadow: 0 1px 1.5px rgba(0,0,0,.07);
+  color: var(--tab-text);
   font-size: 12.5px; font-family: inherit; cursor: pointer;
-  transition: background .15s, color .15s;
+  transition: background .15s, color .15s, border-color .15s;
 }
-.tab:hover { color: var(--text); }
+.tab:hover { color: var(--text); border-color: var(--faint); }
 .tab.active {
-  background: var(--accent); color: #fff; font-weight: 600;
+  background: var(--accent); border-color: var(--accent);
+  color: #fff; font-weight: 600;
   box-shadow: 0 1px 3px rgba(0,0,0,.25);
 }
 .tab .nabla { font-size: 19px; font-weight: 600; line-height: 1; }
