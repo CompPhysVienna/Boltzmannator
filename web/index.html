@@ -13,7 +13,7 @@
 <title>Boltzmannator</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-192.png">
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 <div id="app">
@@ -273,7 +273,7 @@
             the figure is updated continuously. <em>Show mapping lines</em>
             indicates how individual points z are mapped to
             x = f<sub>&theta;</sub>(z). <em>Show transport bands</em> divides
-            the latent density into ten bands of equal probability mass and
+            the latent density into N bands of equal probability mass and
             follows them through the map; each band keeps its mass, so its
             width shows the local stretching. Moving the pointer over the map
             panel displays z, x, the Jacobian and the densities at that
@@ -305,8 +305,9 @@
               &rarr;</button></li>
               <li><b>Transport of probability mass.</b> Activate
               <em>Show transport bands</em> on the <em>Map</em> tab and drag
-              the map parameters. Each coloured band carries 10% of the
-              probability; the map changes its width but never its mass.
+              the map parameters. Each coloured band carries an equal share of
+              the probability; the map changes its width but never its
+              mass.
               <button class="try-btn" data-preset="bands">Set up
               &rarr;</button></li>
               <li><b>Slow motion.</b> Set <em>Delay</em> to 200&nbsp;ms and
@@ -358,8 +359,8 @@
   </main>
 
 </div>
-<script src="js/math.js?v=16"></script>
-<script src="js/plots.js?v=16"></script>
-<script src="js/app.js?v=16"></script>
+<script src="js/math.js?v=17"></script>
+<script src="js/plots.js?v=17"></script>
+<script src="js/app.js?v=17"></script>
 </body>
 </html>

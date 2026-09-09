@@ -451,7 +451,10 @@ function buildMapTab() {
         }
         cbChange("showBands", v);
     });
-    t.appendChild(UI.showBandsCb.root);
+    UI.nBandsInput = textInput("10", "num-sm");
+    UI.nBandsInput.addEventListener("change", requestRender);
+    t.appendChild(el("div", { class: "row" },
+        UI.showBandsCb.root, el("span", { text: "N =" }), UI.nBandsInput));
 }
 
 function buildTrainingTab() {
@@ -1025,7 +1028,10 @@ function drawFigure() {
     /* transport bands: edges at equal probability mass in z, mapped to x */
     let bandEdgesZ = null, bandEdgesX = null;
     if (showBands) {
-        const NB = 10;
+        let NB = parseInt(UI.nBandsInput.value, 10);
+        if (!Number.isFinite(NB)) NB = 10;
+        if (NB > 40) { NB = 40; UI.nBandsInput.value = "40"; }
+        NB = Math.max(2, NB);
         bandEdgesZ = new Float64Array(NB + 1);
         bandEdgesZ[0] = z[0]; bandEdgesZ[NB] = z[nZ - 1];
         for (let j = 1; j < NB; j++)
@@ -1041,13 +1047,14 @@ function drawFigure() {
     axTop.fillUnder(z, pZ, { color: CZ, alpha: FA });
     axTop.line(z, pZ, { color: CZ, lw: 2.4 });
     if (bandEdgesZ !== null) {
-        for (let j = 0; j < 10; j++) {
+        const NB = bandEdgesZ.length - 1;
+        for (let j = 0; j < NB; j++) {
             const sub = linspace(bandEdgesZ[j], bandEdgesZ[j + 1], 12);
             const psub = latentPdf(sub, mu, sg, dist);
             const pts = [[sub[0], 0]];
             for (let i = 0; i < sub.length; i++) pts.push([sub[i], psub[i]]);
             pts.push([sub[sub.length - 1], 0]);
-            axTop.polygon(pts, { color: bandColor(j, 10), alpha: 0.30 });
+            axTop.polygon(pts, { color: bandColor(j, NB), alpha: 0.30 });
         }
     }
     if (S.showCDF) {
@@ -1077,7 +1084,7 @@ function drawFigure() {
 
     /* transport bands: band area in the main panel */
     if (showBands) {
-        const NB = 10;
+        const NB = bandEdgesZ.length - 1;
         for (let j = 0; j < NB; j++) {
             const zl = bandEdgesZ[j], zr = bandEdgesZ[j + 1];
             const sub = linspace(zl, zr, 12);
@@ -1225,7 +1232,8 @@ function drawFigure() {
         axRight.line(pTgtCurve, xDispTgt, { color: CT_TARGET, lw: 2.4 });
     }
     if (bandEdgesX !== null && isMonotone) {
-        for (let j = 0; j < 10; j++) {
+        const NB = bandEdgesX.length - 1;
+        for (let j = 0; j < NB; j++) {
             const ylo = Math.min(bandEdgesX[j], bandEdgesX[j + 1]);
             const yhi = Math.max(bandEdgesX[j], bandEdgesX[j + 1]);
             const sub = linspace(ylo, yhi, 12);
@@ -1233,7 +1241,7 @@ function drawFigure() {
             for (let i = 0; i < sub.length; i++)
                 pts.push([interp1(sub[i], xSorted, pxSorted), sub[i]]);
             pts.push([0, yhi]);
-            axRight.polygon(pts, { color: bandColor(j, 10), alpha: 0.30 });
+            axRight.polygon(pts, { color: bandColor(j, NB), alpha: 0.30 });
         }
     }
     if (S.showU) {
@@ -1268,12 +1276,18 @@ function drawFigure() {
     /* CDF construction guides: F_z(z_q) = F*(x_q) = q */
     if (S.showCDF && tgtCdf !== null) {
         const cdfC = S.dark ? "#BA68C8" : "#8E24AA";
-        const qs = (S.cursor !== null)
-            ? [interp1(clampNum(S.cursor.z, z[0], z[nZ - 1]), z, latCdf)]
-            : [0.25, 0.5, 0.75];
-        for (const q of qs) {
-            if (!(q > 0.001 && q < 0.999)) continue;
-            const zq = interp1(q, latCdf, z);
+        /* cursor mode: anchor the guide at the cursor's z (re-inverting q
+           would snap away from it where the CDF is flat in the tails) */
+        const items = [];
+        if (S.cursor !== null) {
+            const zq = clampNum(S.cursor.z, z[0], z[nZ - 1]);
+            items.push({ zq, q: interp1(zq, z, latCdf) });
+        } else {
+            for (const q of [0.25, 0.5, 0.75])
+                items.push({ q, zq: interp1(q, latCdf, z) });
+        }
+        for (const { q: qRaw, zq } of items) {
+            const q = clampNum(qRaw, 1e-6, 1 - 1e-6);
             const xq = interp1(q, tgtCdf, tgtXWide);
             const opts = { color: cdfC, lw: 1.3, dash: [5, 4], alpha: 0.9 };
             axTop.line([zq, zq], [0, q * axTop.ylim[1] * 0.92], opts);
@@ -2064,7 +2078,7 @@ function buildShareState() {
         i: { ne: UI.nEntryInput.value, nm: UI.nMapInput.value,
              ep: UI.nEpochsInput.value, lr: UI.lrInput.value,
              nb: UI.nBatchInput.value, st: UI.strideInput.value,
-             dl: UI.delayInput.value },
+             dl: UI.delayInput.value, bn: UI.nBandsInput.value },
         m: S.trainMode, o: S.optimizer, rs: S.resample,
     };
 }
@@ -2112,6 +2126,7 @@ function applyShareState(st) {
         if (st.i.nb) UI.nBatchInput.value = st.i.nb;
         if (st.i.st) UI.strideInput.value = st.i.st;
         if (st.i.dl) UI.delayInput.value = st.i.dl;
+        if (st.i.bn) UI.nBandsInput.value = st.i.bn;
     }
     if (st.m && UI.modeRadio.inputs[st.m]) {
         UI.modeRadio.inputs[st.m].checked = true;
@@ -2263,9 +2278,10 @@ function applyTooltips() {
     tip(UI.showMapCb, "Draw guide lines that show how individual points z " +
         "travel through the map to x = f_θ(z).");
     tip(UI.nMapInput, "Number of mapping lines to draw (up to 100).");
-    tip(UI.showBandsCb, "Divide the latent density into ten bands of equal " +
+    tip(UI.showBandsCb, "Divide the latent density into N bands of equal " +
         "probability mass and follow them through the map. The width of " +
-        "each band shows the local stretching; its area is conserved.");
+        "each band shows the local stretching; its mass is conserved.");
+    tip(UI.nBandsInput, "Number of transport bands (2 to 40).");
     tip(UI.showUCb, "Display the potential U(x) next to the transformed " +
         "density (arbitrary vertical scale).");
     tip(UI.showCDFCb, "Illustrate the construction of the exact map " +
