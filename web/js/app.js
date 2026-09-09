@@ -1699,7 +1699,7 @@ function initTooltips() {
                 y = r.top - tr.height - 8;
             tipEl.style.left = `${x}px`;
             tipEl.style.top = `${y}px`;
-        }, 350);
+        }, 800);   // deliberate hover only — no popups while just mousing around
     });
     document.addEventListener("mouseout", (e) => {
         if (current && !current.contains(e.relatedTarget)) hide();
