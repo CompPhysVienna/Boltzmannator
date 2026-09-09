@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Boltzmannator">
 <meta name="theme-color" content="#1565C0">
 <title>Boltzmannator</title>
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 <div id="app">
@@ -267,24 +267,24 @@
               <li><b>Double well.</b> On <em>Densities</em>, set
               u&#8322; = &minus;2 and u&#8324; &asymp; 0.3, tick <em>Show
               target</em>, then <em>Train!</em> &mdash; watch one Gaussian
-              split into two peaks.</li>
+              split into two peaks. <button class="try-btn" data-preset="double-well">Set up &rarr;</button></li>
               <li><b>Slow motion.</b> Set <em>Delay</em> to 200&nbsp;ms and
-              <em>Every</em> to 1 to see every single epoch.</li>
+              <em>Every</em> to 1 to see every single epoch. <button class="try-btn" data-preset="slow-motion">Set up &rarr;</button></li>
               <li><b>Break invertibility.</b> Choose the polynomial map and
               push &theta;&#8322; or &theta;&#8323; until the orange dots
               appear &mdash; the density then needs a histogram estimate
-              (KDE).</li>
+              (KDE). <button class="try-btn" data-preset="non-invertible">Set up &rarr;</button></li>
               <li><b>Bimodal latent.</b> Match a bimodal latent to a
-              double-well target &mdash; a much easier job for the map.</li>
+              double-well target &mdash; a much easier job for the map. <button class="try-btn" data-preset="bimodal">Set up &rarr;</button></li>
               <li><b>Compare optimisers.</b> Train the same problem with SGD
-              and with Adam at different learning rates.</li>
+              and with Adam at different learning rates. <button class="try-btn" data-preset="sgd">Set up &rarr;</button></li>
               <li><b>Learn from data.</b> Press <em>Data</em>, switch to
               <em>Example-based</em>, and train from samples instead of
-              energies.</li>
+              energies. <button class="try-btn" data-preset="example">Set up &rarr;</button></li>
               <li><b>Check the quality.</b> After training, press
               <em>Sample!</em> and tick <em>Show importance weights</em>:
               N<sub>eff</sub> near 100% means p<sub>x</sub> &asymp;
-              p<sup>*</sup>.</li>
+              p<sup>*</sup>. <button class="try-btn" data-preset="weights">Set up &rarr;</button></li>
             </ol>
 
             <h3>General</h3>
@@ -301,8 +301,8 @@
   </main>
 
 </div>
-<script src="js/math.js?v=10"></script>
-<script src="js/plots.js?v=10"></script>
-<script src="js/app.js?v=10"></script>
+<script src="js/math.js?v=11"></script>
+<script src="js/plots.js?v=11"></script>
+<script src="js/app.js?v=11"></script>
 </body>
 </html>

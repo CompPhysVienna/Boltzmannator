@@ -390,6 +390,32 @@ html.dark .doc h3 { color: #6ba3e8; }
 }
 .doc i, .doc em { font-style: italic; }
 
+/* one-click experiment setup buttons in the Help page */
+.try-btn {
+  display: inline-block; margin-left: 4px; padding: 2px 10px;
+  border: 1px solid var(--accent); border-radius: 999px;
+  background: transparent; color: var(--accent);
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer; vertical-align: 1px;
+  transition: background .15s, color .15s;
+}
+.try-btn:hover { background: var(--accent); color: #fff; }
+html.dark .try-btn { border-color: #6ba3e8; color: #6ba3e8; }
+html.dark .try-btn:hover { background: #6ba3e8; color: #17171b; }
+
+/* figure-download button over the plot (companion to #btn-fs) */
+#btn-dl {
+  position: absolute; top: 20px; right: 20px; z-index: 6;
+  width: 36px; height: 36px; border: none; border-radius: 9px;
+  background: transparent; color: var(--faint); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  opacity: .45; transition: opacity .15s, background .15s, color .15s;
+}
+#btn-dl:hover { opacity: 1; background: var(--tabs-bg); color: var(--text); }
+#btn-dl svg { width: 19px; height: 19px; }
+/* on touch devices the full-screen button owns that corner */
+@media (pointer: coarse) { #btn-dl { right: 64px; opacity: .6; } }
+
 /* ── Hover tooltips ─────────────────────────────────────────────────── */
 
 #tooltip {

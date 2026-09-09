@@ -1562,6 +1562,98 @@ function initOverlay() {
     document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && overlayDoc) setOverlay(null);
     });
+    for (const btn of document.querySelectorAll(".try-btn"))
+        btn.addEventListener("click", () => applyPreset(btn.dataset.preset));
+}
+
+/* ── One-click experiment presets (the Help page's "Things to try") ─────── */
+
+function switchTab(name) {
+    const btn = document.querySelector(`#tabs .tab[data-tab="${name}"]`);
+    if (btn) btn.click();          // also closes the overlay
+}
+
+function setCheckbox(cb, attr, value) {
+    cb.input.checked = value;
+    S[attr] = value;
+}
+
+function setTargetDoubleWell() {
+    setVal("kT", 1.0); setVal("u1", 0.0); setVal("u2", -2.0);
+    setVal("u3", 0.0); setVal("u4", 0.3);
+    setCheckbox(UI.showTargetCb, "showTarget", true);
+}
+
+function applyPreset(name) {
+    switch (name) {
+    case "double-well":
+        setTargetDoubleWell();
+        switchTab("train");
+        break;
+    case "slow-motion":
+        UI.delayInput.value = "200";
+        UI.strideInput.value = "1";
+        setCheckbox(UI.showTargetCb, "showTarget", true);
+        switchTab("train");
+        break;
+    case "non-invertible":
+        S.transform = T_POLY;
+        UI.transformSelect.value = T_POLY;
+        setVal("t0", 0.0); setVal("t1", 1.0);
+        setVal("t2", 1.5); setVal("t3", 0.0);
+        onTransformChange();
+        switchTab("map");
+        break;
+    case "bimodal":
+        UI.distSelect.value = "Bimodal";
+        onDistChange("Bimodal");
+        setTargetDoubleWell();
+        switchTab("train");
+        break;
+    case "sgd":
+        UI.optSelect.value = "SGD";
+        S.optimizer = "SGD";
+        setCheckbox(UI.showTargetCb, "showTarget", true);
+        switchTab("train");
+        break;
+    case "example":
+        doGenerateData();
+        UI.modeRadio.inputs["Example-based"].checked = true;
+        S.trainMode = "Example-based";
+        setCheckbox(UI.showTargetCb, "showTarget", true);
+        switchTab("train");
+        break;
+    case "weights":
+        doSampling();
+        setCheckbox(UI.showTargetCb, "showTarget", true);
+        setCheckbox(UI.showIwCb, "showIW", true);
+        switchTab("train");
+        break;
+    }
+    requestRender();
+}
+
+/* ── Figure download ────────────────────────────────────────────────────── */
+
+function initDownloadButton() {
+    const btn = el("button", { id: "btn-dl", "aria-label": "Download figure" });
+    btn.dataset.tip = "Download the current figure as a PNG image.";
+    btn.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M12 4v11m0 0 5-5m-5 5-5-5M4 20h16"/></svg>';
+    btn.addEventListener("click", () => {
+        drawFigure();                       // make sure the canvas is fresh
+        canvas.toBlob((blob) => {
+            if (!blob) return;
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "boltzmannator_figure.png";
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        }, "image/png");
+    });
+    document.getElementById("plotwrap").appendChild(btn);
 }
 
 /* ── Hover tooltips ─────────────────────────────────────────────────────── */
@@ -1750,6 +1842,7 @@ function init() {
     window.addEventListener("resize", refitAfterRotate);
 
     setupFullscreenButton();
+    initDownloadButton();
 
     drawFigure();
     setInterval(tick, 30);
