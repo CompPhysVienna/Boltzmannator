@@ -1458,6 +1458,7 @@ function drawFigure() {
     /* — free-energy / KL readout (top-left margin, shown with the target) —
        βF_flow = ⟨ln p_z⟩ + ⟨U/kT − ln|J|⟩ is the variational free energy of
        the flow; βF_exact = −ln Z.  Their difference is KL(p_x ‖ p*) ≥ 0. */
+    const feRects = [];
     if (S.showTarget && isMonotone) {
         const { Z, shift } = targetCache();
         if (Z > 0) {
@@ -1478,17 +1479,26 @@ function drawFigure() {
                 let kl = bFflow - bFexact;
                 if (kl < 0 && kl > -0.05) kl = 0;
                 if (Number.isFinite(bFflow) && Number.isFinite(kl)) {
-                    drawRich(ctx, [
-                        "βF", ["flow", "sub"], ` = ${bFflow.toFixed(3)}      `,
-                        "βF", ["exact", "sub"], ` = ${bFexact.toFixed(3)}      `,
-                        "KL(p", ["x", "sub"], "‖p*)", ` = ${kl.toFixed(3)}`],
-                        xf(leftCols[0][0]), 26,
-                        { size: 10.5 * FS, align: "left",
-                          color: S.dark ? "#b9b9c2" : "#555555" });
+                    const parts = [
+                        ["βF", ["flow", "sub"], ` = ${bFflow.toFixed(3)}`],
+                        ["βF", ["exact", "sub"], ` = ${bFexact.toFixed(3)}`],
+                        ["KL(p", ["x", "sub"], "‖p*)",
+                         ` = ${kl.toFixed(3)}`]];
+                    const rSize = 10.5 * FS;
+                    let cx0 = xf(leftCols[0][0]);
+                    for (const part of parts) {
+                        const w = measureRich(ctx, part, rSize);
+                        drawRich(ctx, part, cx0, 26,
+                            { size: rSize, align: "left",
+                              color: S.dark ? "#b9b9c2" : "#555555" });
+                        feRects.push({ x: cx0, y: 8, w, h: 24 });
+                        cx0 += w + 30;
+                    }
                 }
             }
         }
     }
+    positionFeHotspots(feRects);
 
     /* — loss-slice inset: loss as a function of one parameter — */
     if (S.lossSliceKey !== "None") drawLossSlice(axMain, z, pZ, tg, theme);
@@ -2370,6 +2380,44 @@ function initTooltips() {
     document.addEventListener("mousedown", hide);
 }
 
+/* invisible hover targets over the canvas free-energy readout, so the
+   three quantities get explanation boxes like every other control */
+const FE_TIPS = [
+    "Variational free energy of the flow, βF_flow = ⟨ln p_z⟩ + " +
+    "⟨U/k_BT − ln|J|⟩, evaluated for the current transformation. By the " +
+    "Gibbs–Bogoliubov inequality it is never smaller than βF_exact; " +
+    "training lowers it towards that bound.",
+    "Exact free energy of the target distribution, βF_exact = −ln Z, " +
+    "obtained by numerical integration of exp(−U(x)/k_BT). A perfect " +
+    "flow reaches this lower bound.",
+    "Kullback–Leibler divergence KL(p_x ‖ p*) = βF_flow − βF_exact ≥ 0. " +
+    "It measures how much the flow deviates from the target and vanishes " +
+    "exactly when the two distributions coincide.",
+];
+
+function initFeHotspots() {
+    UI.feHots = FE_TIPS.map((tip) => {
+        const h = el("div", { class: "fe-hot" });
+        h.dataset.tip = tip;
+        document.getElementById("plotcard").appendChild(h);
+        return h;
+    });
+}
+
+function positionFeHotspots(rects) {
+    if (!UI.feHots) return;
+    const v = S._view;
+    UI.feHots.forEach((h, i) => {
+        const r = rects[i];
+        if (!r || !v) { h.style.display = "none"; return; }
+        h.style.display = "block";
+        h.style.left = `${canvas.offsetLeft + v.ox + r.x * v.s}px`;
+        h.style.top = `${canvas.offsetTop + v.oy + r.y * v.s}px`;
+        h.style.width = `${r.w * v.s}px`;
+        h.style.height = `${r.h * v.s}px`;
+    });
+}
+
 function init() {
     canvas = document.getElementById("plot");
     ctx = canvas.getContext("2d");
@@ -2415,6 +2463,7 @@ function init() {
     setupFullscreenButton();
     initDownloadButton();
     initShareButton();
+    initFeHotspots();
     updateLossSliceOptions();
     applyStateFromHash();
 
