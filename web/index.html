@@ -13,7 +13,8 @@
 <title>Boltzmannator</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-192.png">
-<link rel="stylesheet" href="style.css?v=22">
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<link rel="stylesheet" href="style.css?v=23">
 </head>
 <body>
 <div id="app">
@@ -110,7 +111,7 @@
             <h3>1&ensp;&middot;&ensp;The sampling problem</h3>
             <p>In equilibrium statistical mechanics a configuration
             <i>x</i> occurs with probability</p>
-            <p class="eq">p<sup>*</sup>(x) =
+            <p class="eq" data-tex="p^{*}\!(x) = e^{-U(x)/k_{\mathrm{B}}T} / Z ,">p<sup>*</sup>(x) =
               e<sup>&minus;U(x)/k<sub>B</sub>T</sup> / Z ,</p>
             <p>where <i>U</i>(<i>x</i>) is the potential energy,
             <i>k</i><sub>B</sub><i>T</i> the thermal energy and <i>Z</i> the
@@ -131,7 +132,7 @@
             <i>x</i> = f<sub>&theta;</sub>(z) (centre panel). The transformed
             variable has the density
             <span class="cdot" style="background:#2E7D32"></span></p>
-            <p class="eq">p<sub>x</sub>(x) = p<sub>z</sub>(z)
+            <p class="eq" data-tex="p_x(x) = p_z(z)\,\biggl|\frac{df_\theta}{dz}\biggr|^{-1},\qquad z = f_\theta^{-1}(x) .">p<sub>x</sub>(x) = p<sub>z</sub>(z)
               |df<sub>&theta;</sub>/dz|<sup>&minus;1</sup> ,&emsp;
               z = f<sub>&theta;</sub><sup>&minus;1</sup>(x) .</p>
             <p>Where the map expands intervals (Jacobian
@@ -149,7 +150,7 @@
             p<sup>*</sup>. Two standard objectives are available.</p>
             <p><b>Energy-based training</b> minimises the reverse
             Kullback&ndash;Leibler divergence,</p>
-            <p class="eq">L =
+            <p class="eq" data-tex="L = \bigl\langle\, U(f_\theta(z))/k_{\mathrm{B}}T - \log|J(z)|\,\bigr\rangle_{z\sim p_z} = \mathrm{KL}\bigl(p_x \,\Vert\, p^{*}\bigr) + \mathrm{const} .">L =
               &lang; U(f<sub>&theta;</sub>(z))/k<sub>B</sub>T &minus;
               log&thinsp;|J(z)| &rang;<sub>z&sim;p<sub>z</sub></sub>
               = KL(p<sub>x</sub>&thinsp;&Vert;&thinsp;p<sup>*</sup>) + const .</p>
@@ -160,28 +161,40 @@
             <p><b>Example-based training</b> minimises the negative
             log-likelihood of data points x<sub>i</sub> distributed according
             to p<sup>*</sup> (forward Kullback&ndash;Leibler divergence),</p>
-            <p class="eq">NLL = &lang; &minus;log p<sub>z</sub>(
+            <p class="eq" data-tex="\mathrm{NLL} = \bigl\langle -\log p_z(f_\theta^{-1}(x)) + \log|J|\,\bigr\rangle_{\mathrm{data}} = \mathrm{KL}\bigl(p^{*} \,\Vert\, p_x\bigr) + \mathrm{const} .">NLL = &lang; &minus;log p<sub>z</sub>(
               f<sub>&theta;</sub><sup>&minus;1</sup>(x)) +
               log&thinsp;|J| &rang;<sub>data</sub>
               = KL(p<sup>*</sup>&thinsp;&Vert;&thinsp;p<sub>x</sub>) + const .</p>
             <p>The loss panel shows both contributions separately (blue and
             orange) together with their sum (dark line).</p>
-            <p>While the target is displayed, the figure also reports the
-            variational free energy of the flow,
+            <p>While the target is displayed, the figure reports two free
+            energies. The variational free energy of the flow,
             &beta;F<sub>flow</sub> = &lang;ln p<sub>z</sub>&rang; +
-            &lang;U/k<sub>B</sub>T &minus; ln&thinsp;|J|&rang;, together with
-            the exact value &beta;F<sub>exact</sub> = &minus;ln Z. According
-            to the Gibbs&ndash;Bogoliubov inequality,
-            F<sub>flow</sub> &ge; F<sub>exact</sub>, and the difference
-            equals the Kullback&ndash;Leibler divergence
-            KL(p<sub>x</sub>&thinsp;&Vert;&thinsp;p<sup>*</sup>), which
-            vanishes exactly when the flow reproduces the target.</p>
+            &lang;U/k<sub>B</sub>T &minus; ln&thinsp;|J|&rang;, is the free
+            energy of the model distribution p<sub>x</sub> in the target
+            potential; &beta;F<sub>exact</sub> = &minus;ln Z is the free
+            energy of the target itself. The two are related by the
+            Gibbs&ndash;Bogoliubov inequality,</p>
+            <p class="eq" data-tex="F_{\mathrm{flow}} =
+              F_{\mathrm{exact}} + k_{\mathrm{B}}T\,
+              \mathrm{KL}\bigl(p_x \,\Vert\, p^{*}\bigr)
+              \;\ge\; F_{\mathrm{exact}} ,">F<sub>flow</sub> =
+              F<sub>exact</sub> + k<sub>B</sub>T
+              KL(p<sub>x</sub>&thinsp;&Vert;&thinsp;p<sup>*</sup>)
+              &ge; F<sub>exact</sub> ,</p>
+            <p>which holds because the Kullback&ndash;Leibler divergence is
+            non-negative. The gap between the two values shown in the figure
+            is therefore exactly k<sub>B</sub>T&thinsp;KL(p<sub>x</sub>
+            &thinsp;&Vert;&thinsp;p<sup>*</sup>); it closes when the flow
+            reproduces the target, and training can be read as the
+            minimisation of the variational free energy towards the exact
+            one.</p>
 
             <h3>4&ensp;&middot;&ensp;Reweighting</h3>
             <p>A trained flow approximates the target but does not reproduce
             it exactly. Exact averages can nevertheless be obtained by
             importance sampling, in which each sample x is weighted with</p>
-            <p class="eq">w(x) = p<sup>*</sup>(x) / p<sub>x</sub>(x) ,&emsp;
+            <p class="eq" data-tex="w(x) = p^{*}\!(x)/p_x(x) ,\qquad \langle A\rangle = \sum_i w_i A(x_i) \Big/ \sum_i w_i .">w(x) = p<sup>*</sup>(x) / p<sub>x</sub>(x) ,&emsp;
               &lang;A&rang; = &Sigma; w<sub>i</sub>A(x<sub>i</sub>) /
               &Sigma; w<sub>i</sub> .</p>
             <p>The effective sample size
@@ -364,8 +377,9 @@
   </main>
 
 </div>
-<script src="js/math.js?v=22"></script>
-<script src="js/plots.js?v=22"></script>
-<script src="js/app.js?v=22"></script>
+<script src="vendor/katex/katex.min.js"></script>
+<script src="js/math.js?v=23"></script>
+<script src="js/plots.js?v=23"></script>
+<script src="js/app.js?v=23"></script>
 </body>
 </html>

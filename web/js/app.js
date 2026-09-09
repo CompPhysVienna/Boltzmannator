@@ -2417,20 +2417,27 @@ function initTooltips() {
    three quantities get explanation boxes like every other control */
 const FE_TIPS = [
     "Variational free energy of the flow,<br>" +
-    "βF<sub>flow</sub> = ∫ p<sub>x</sub>(x) [U(x)/k<sub>B</sub>T + " +
-    "ln p<sub>x</sub>(x)] dx,<br>" +
+    texLine("\\beta F_{\\mathrm{flow}} = \\int p_x(x)\\,\\bigl[" +
+            "U(x)/k_{\\mathrm{B}}T + \\ln p_x(x)\\bigr]\\,dx,",
+            "βF<sub>flow</sub> = ∫ p<sub>x</sub>(x) [U(x)/k<sub>B</sub>T " +
+            "+ ln p<sub>x</sub>(x)] dx,") + "<br>" +
     "evaluated for the current transformation. By the Gibbs–Bogoliubov " +
     "inequality it is never smaller than βF<sub>exact</sub>; training " +
     "lowers it towards that bound.",
     "Exact free energy of the target distribution, " +
     "βF<sub>exact</sub> = −ln Z, with the partition function<br>" +
-    "Z = ∫ exp(−U(x)/k<sub>B</sub>T) dx,<br>" +
+    texLine("Z = \\int e^{-U(x)/k_{\\mathrm{B}}T}\\,dx,",
+            "Z = ∫ exp(−U(x)/k<sub>B</sub>T) dx,") + "<br>" +
     "obtained by numerical integration. A perfect flow reaches this " +
     "lower bound.",
     "Kullback–Leibler divergence<br>" +
-    "KL(p<sub>x</sub>‖p*) = ∫ p<sub>x</sub>(x) " +
-    "ln[p<sub>x</sub>(x)/p*(x)] dx = βF<sub>flow</sub> − " +
-    "βF<sub>exact</sub> ≥ 0.<br>" +
+    texLine("\\mathrm{KL}(p_x\\Vert p^{*}) = \\int p_x(x)\\," +
+            "\\ln\\frac{p_x(x)}{p^{*}(x)}\\,dx = " +
+            "\\beta F_{\\mathrm{flow}} - " +
+            "\\beta F_{\\mathrm{exact}} \\ge 0.",
+            "KL(p<sub>x</sub>‖p*) = ∫ p<sub>x</sub>(x) " +
+            "ln[p<sub>x</sub>(x)/p*(x)] dx = βF<sub>flow</sub> − " +
+            "βF<sub>exact</sub> ≥ 0.") + "<br>" +
     "It measures how much the flow deviates from the target and vanishes " +
     "exactly when the two distributions coincide.",
 ];
@@ -2479,6 +2486,28 @@ const MAIN_TIPS = [
     "sideways so that it shares the x axis with the map. During " +
     "training it approaches the target p*(x).",
 ];
+
+/* typeset the display equations of the Theory page with KaTeX; the
+   HTML fallback inside each .eq paragraph is kept if KaTeX is missing */
+function renderMathEqs() {
+    if (!window.katex) return;
+    for (const p of document.querySelectorAll(".eq[data-tex]")) {
+        try {
+            katex.render(p.dataset.tex, p,
+                         { throwOnError: false, displayMode: true });
+        } catch (e) { /* keep the HTML fallback */ }
+    }
+}
+
+/* one KaTeX-typeset line for use inside an information box */
+function texLine(tex, fallback) {
+    if (!window.katex) return fallback;
+    try {
+        return "<span class=\"tip-eq\">" +
+               katex.renderToString(tex, { throwOnError: false }) +
+               "</span>";
+    } catch (e) { return fallback; }
+}
 
 function initFeHotspots() {
     UI.feHots = makeHotspots(FE_TIPS);
@@ -2546,6 +2575,7 @@ function init() {
     initDownloadButton();
     initShareButton();
     initFeHotspots();
+    renderMathEqs();
     updateLossSliceOptions();
     applyStateFromHash();
 

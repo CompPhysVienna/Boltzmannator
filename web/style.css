@@ -381,7 +381,11 @@ html.dark .doc h3 { color: #6ba3e8; }
   display: block; text-align: center; margin: 10px 0;
   font-family: Georgia, "Times New Roman", serif; font-style: italic;
   font-size: 16.5px;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin;
 }
+.doc .eq .katex-display { margin: 4px 0; }
+.doc .eq .katex { font-size: 1.08em; }
 .doc ul, .doc ol { margin: 6px 0; padding-left: 22px; }
 .doc li { margin: 4px 0; }
 .doc .refs { font-size: 13px; color: var(--muted); line-height: 1.6; }
@@ -547,3 +551,6 @@ html.dark #tooltip { background: #3a3a44; border-color: #55555f; }
 
 /* invisible hover targets over the free-energy readout on the canvas */
 .fe-hot { position: absolute; display: none; cursor: help; z-index: 5; }
+
+/* KaTeX-typeset equation lines inside information boxes */
+#tooltip .tip-eq { display: block; margin: 5px 0; font-size: 13px; }

@@ -26,6 +26,8 @@
 !web/js/app.js
 !web/manifest.webmanifest
 !web/sw.js
+!web/vendor/
+!web/vendor/**
 !web/img/
 !web/img/Boltzmannator_title.png
 !web/img/Boltzmannator_movie.png
