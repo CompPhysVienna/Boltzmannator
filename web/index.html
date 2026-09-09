@@ -13,7 +13,7 @@
 <title>Boltzmannator</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-192.png">
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 <div id="app">
@@ -257,15 +257,23 @@
             potential U(x) = u&#8321;x + u&#8322;x&sup2; + u&#8323;x&sup3; +
             u&#8324;x&#8308; and the temperature kT. <em>Show exact
             transformation</em> displays the map that reproduces the target
-            exactly.</p>
+            exactly. <em>Show potential U(x)</em> draws the potential next to
+            the transformed density, and <em>Show CDF construction</em>
+            illustrates how the exact map is obtained from the two cumulative
+            distribution functions; the quantile follows the pointer over the
+            map panel.</p>
 
             <h3>Map tab</h3>
             <p>The transformation family and its parameters are set here;
             the figure is updated continuously. <em>Show mapping lines</em>
             indicates how individual points z are mapped to
-            x = f<sub>&theta;</sub>(z). <em>Defaults</em> restores the
-            identity map; <em>Randomize</em> assigns random parameter
-            values.</p>
+            x = f<sub>&theta;</sub>(z). <em>Show transport bands</em> divides
+            the latent density into ten bands of equal probability mass and
+            follows them through the map; each band keeps its mass, so its
+            width shows the local stretching. Moving the pointer over the map
+            panel displays z, x, the Jacobian and the densities at that
+            point. <em>Defaults</em> restores the identity map;
+            <em>Randomize</em> assigns random parameter values.</p>
 
             <h3>Training tab</h3>
             <p><em>Sample</em> draws N latent points and passes them through
@@ -277,7 +285,10 @@
             frequency of figure updates; a larger delay slows the
             visualisation. <em>Stop</em> interrupts a running training;
             <em>Reset training</em> clears the loss history and restores the
-            identity map.</p>
+            identity map. <em>Show training trails</em> keeps faded copies of
+            the map from earlier epochs, and the <em>Loss slice</em> selector
+            displays the loss as a function of a single parameter around the
+            current value.</p>
 
             <h3>Things to try</h3>
             <ol>
@@ -336,8 +347,8 @@
   </main>
 
 </div>
-<script src="js/math.js?v=14"></script>
-<script src="js/plots.js?v=14"></script>
-<script src="js/app.js?v=14"></script>
+<script src="js/math.js?v=15"></script>
+<script src="js/plots.js?v=15"></script>
+<script src="js/app.js?v=15"></script>
 </body>
 </html>

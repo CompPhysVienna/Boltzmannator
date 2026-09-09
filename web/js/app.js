@@ -48,6 +48,13 @@ const S = {
     rescale: true,
     showIW: false,
     showMapLines: false,
+    showBands: false,
+    showU: false,
+    showCDF: false,
+    showTrails: true,
+    lossSliceKey: "None",
+    trail: [],            // parameter snapshots captured during training
+    cursor: null,         // {z} data coordinate under the pointer, or null
     showData: true,
     showTarget: false,
     showExact: false,
@@ -203,6 +210,7 @@ function onSliderChange(key, value) {
     if (s) s.valEl.textContent = fmt2(value);
     if (S.suppressRedraw) return;
     S.useTrainedParams = false;
+    if (paramKeys().includes(key)) clearTrails();
     requestRender();
 }
 
@@ -337,6 +345,12 @@ function buildDensitiesTab() {
     UI.showExactCb = checkbox("Show exact transformation", false,
         (v) => cbChange("showExact", v));
     t.appendChild(UI.showExactCb.root);
+    UI.showUCb = checkbox("Show potential U(x)", false,
+        (v) => cbChange("showU", v));
+    t.appendChild(UI.showUCb.root);
+    UI.showCDFCb = checkbox("Show CDF construction", false,
+        (v) => cbChange("showCDF", v));
+    t.appendChild(UI.showCDFCb.root);
 
     addSlider(t, "kT", "kT", 0.1, 3.0, 1.0, 0.05);
     addSlider(t, "u₁", "u1", -2.0, 2.0, 0.0, 0.10);
@@ -419,12 +433,25 @@ function buildMapTab() {
                "Set random transformation parameters")));
 
     t.appendChild(sep());
-    UI.showMapCb = checkbox("Show mapping lines", false,
-        (v) => cbChange("showMapLines", v));
+    UI.showMapCb = checkbox("Show mapping lines", false, (v) => {
+        if (v && S.showBands) {
+            UI.showBandsCb.input.checked = false;
+            S.showBands = false;
+        }
+        cbChange("showMapLines", v);
+    });
     UI.nMapInput = textInput("50", "num-sm");
     UI.nMapInput.addEventListener("change", requestRender);
     t.appendChild(el("div", { class: "row" },
         UI.showMapCb.root, el("span", { text: "N =" }), UI.nMapInput));
+    UI.showBandsCb = checkbox("Show transport bands", false, (v) => {
+        if (v && S.showMapLines) {
+            UI.showMapCb.input.checked = false;
+            S.showMapLines = false;
+        }
+        cbChange("showBands", v);
+    });
+    t.appendChild(UI.showBandsCb.root);
 }
 
 function buildTrainingTab() {
@@ -474,6 +501,19 @@ function buildTrainingTab() {
         el("span", { text: "epochs" }), el("span", { class: "spacer" }),
         el("span", { text: "Delay =" }), UI.delayInput,
         el("span", { text: "ms" })));
+
+    UI.showTrailsCb = checkbox("Show training trails", true,
+        (v) => cbChange("showTrails", v));
+    t.appendChild(UI.showTrailsCb.root);
+
+    UI.lossSliceSelect = select(["None"], "None", (v) => {
+        S.lossSliceKey = v;
+        requestRender();
+    });
+    UI.lossSliceSelect.classList.add("num");
+    UI.lossSliceSelect.style.width = "110px";
+    t.appendChild(el("div", { class: "row" },
+        el("span", { text: "Loss slice:" }), UI.lossSliceSelect));
 
     t.appendChild(el("div", { class: "row gap" },
         button("Train", "btn-positive", doTraining,
@@ -534,6 +574,29 @@ function onDistChange(val) {
     requestRender();
 }
 
+function clearTrails() {
+    if (S.trail.length > 0) S.trail = [];
+}
+
+/* keep the loss-slice selector in sync with the active parameter set */
+function updateLossSliceOptions() {
+    if (!UI.lossSliceSelect) return;
+    const keys = paramKeys();
+    const labelOf = (k) => {
+        const s = sliders[k];
+        return s ? s.row.querySelector(".lbl").textContent : k;
+    };
+    const prev = S.lossSliceKey;
+    UI.lossSliceSelect.innerHTML = "";
+    UI.lossSliceSelect.appendChild(el("option", { value: "None",
+                                                  text: "None" }));
+    for (const k of keys)
+        UI.lossSliceSelect.appendChild(el("option", { value: k,
+                                                      text: labelOf(k) }));
+    if (keys.includes(prev)) UI.lossSliceSelect.value = prev;
+    else { UI.lossSliceSelect.value = "None"; S.lossSliceKey = "None"; }
+}
+
 function onTransformChange(val) {
     if (val !== undefined) S.transform = val;
     UI.polySection.classList.toggle("hidden", S.transform !== T_POLY);
@@ -541,6 +604,8 @@ function onTransformChange(val) {
     UI.rqsSection.classList.toggle("hidden",  S.transform !== T_RQS);
     if (S.transform === T_RQS) updateRqsRows(); else updateSigRows();
     S.useTrainedParams = false;
+    clearTrails();
+    updateLossSliceOptions();
     requestRender();
 }
 
@@ -548,6 +613,8 @@ function onKChange(k) {
     S.K = k;
     updateSigRows();
     S.useTrainedParams = false;
+    clearTrails();
+    updateLossSliceOptions();
     requestRender();
 }
 
@@ -555,6 +622,8 @@ function onKRqsChange(k) {
     S.Krqs = k;
     updateRqsRows();
     S.useTrainedParams = false;
+    clearTrails();
+    updateLossSliceOptions();
     requestRender();
 }
 
@@ -603,12 +672,23 @@ function resetApp() {
     UI.showDataCb.input.checked = true;
     UI.showIwCb.input.checked = false;
     UI.showMapCb.input.checked = false;
+    UI.showBandsCb.input.checked = false;
+    UI.showUCb.input.checked = false;
+    UI.showCDFCb.input.checked = false;
+    UI.showTrailsCb.input.checked = true;
     UI.rescaleCb.checked = true;
     UI.nEntryInput.value = "1000";
     UI.nMapInput.value = "50";
     S.showData = true;
     S.showIW = false;
     S.showMapLines = false;
+    S.showBands = false;
+    S.showU = false;
+    S.showCDF = false;
+    S.showTrails = true;
+    S.lossSliceKey = "None";
+    if (UI.lossSliceSelect) UI.lossSliceSelect.value = "None";
+    clearTrails();
     S.rescale = true;
     S.lossHist = []; S.lossEner = []; S.lossEntr = [];
     S.lastTrainedParams = null;
@@ -625,6 +705,7 @@ function resetApp() {
 
 function resetTraining() {
     S.training = false;
+    clearTrails();
     S.lossHist = []; S.lossEner = []; S.lossEntr = [];
     S.trainParamsPending = null;
     S.trainParamsLive = null;
@@ -661,6 +742,7 @@ function resetTraining() {
 
 function resetMapParams() {
     S.useTrainedParams = false;
+    clearTrails();
     S.suppressRedraw = true;
     try {
         if (S.transform === T_POLY) {
@@ -686,6 +768,7 @@ function resetMapParams() {
 
 function randomizeMapParams() {
     S.useTrainedParams = false;
+    clearTrails();
     const rng = makeRng(null);
     S.suppressRedraw = true;
     try {
@@ -834,6 +917,8 @@ function drawFigure() {
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale,
                      dpr * (cw - LOGICAL_W * scale) / 2,
                      dpr * (ch - LOGICAL_H * scale) / 2);
+    S._view = { s: scale, ox: (cw - LOGICAL_W * scale) / 2,
+                oy: (ch - LOGICAL_H * scale) / 2 };
 
     /* — data preparation — */
     let mu, sg, dist, z, pZ;
@@ -856,11 +941,21 @@ function drawFigure() {
     const xSorted = Float64Array.from(order, (i) => x[i]);
     const pxSorted = Float64Array.from(order, (i) => pxCurve[i]);
 
+    /* latent CDF on the z grid (exact map, transport bands, CDF view) */
+    const latCdf = new Float64Array(nZ);
+    {
+        const dzg = z[1] - z[0];
+        let acc = 0;
+        for (let i = 0; i < nZ; i++) { acc += pZ[i] * dzg; latCdf[i] = acc; }
+        if (latCdf[nZ - 1] > 0)
+            for (let i = 0; i < nZ; i++) latCdf[i] /= latCdf[nZ - 1];
+    }
+
     /* — target curve (cached) — */
     const tg = targetVals();
     let pTgtMax = 0, xTgtLo = null, xTgtHi = null;
     let xDispTgt = null, pTgtCurve = null, tgtCdf = null, tgtXWide = null;
-    if (S.showTarget || S.showExact) {
+    if (S.showTarget || S.showExact || S.showCDF) {
         const { xWide, pWide, Z, shift } = targetCache();
         if (Z > 0) {
             const dx = xWide[1] - xWide[0];
@@ -924,7 +1019,19 @@ function drawFigure() {
     const axHistX = new Axes(ctx, rect(outerCols[1], rightRows[1]), theme);
     const axLoss  = new Axes(ctx, rect(outerCols[1], rightRows[2]), theme);
 
-    const showGrid = !S.showMapLines;
+    const showGrid = !S.showMapLines && !S.showBands;
+    const showBands = S.showBands && isMonotone;
+
+    /* transport bands: edges at equal probability mass in z, mapped to x */
+    let bandEdgesZ = null, bandEdgesX = null;
+    if (showBands) {
+        const NB = 10;
+        bandEdgesZ = new Float64Array(NB + 1);
+        bandEdgesZ[0] = z[0]; bandEdgesZ[NB] = z[nZ - 1];
+        for (let j = 1; j < NB; j++)
+            bandEdgesZ[j] = interp1(j / NB, latCdf, z);
+        bandEdgesX = evalTransformDisplay(bandEdgesZ).x;
+    }
 
     /* — top panel: latent density — */
     axTop.setXlim(mainX[0], mainX[1]);
@@ -933,6 +1040,25 @@ function drawFigure() {
     if (showGrid) axTop.grid();
     axTop.fillUnder(z, pZ, { color: CZ, alpha: FA });
     axTop.line(z, pZ, { color: CZ, lw: 2.4 });
+    if (bandEdgesZ !== null) {
+        for (let j = 0; j < 10; j++) {
+            const sub = linspace(bandEdgesZ[j], bandEdgesZ[j + 1], 12);
+            const psub = latentPdf(sub, mu, sg, dist);
+            const pts = [[sub[0], 0]];
+            for (let i = 0; i < sub.length; i++) pts.push([sub[i], psub[i]]);
+            pts.push([sub[sub.length - 1], 0]);
+            axTop.polygon(pts, { color: bandColor(j, 10), alpha: 0.30 });
+        }
+    }
+    if (S.showCDF) {
+        const cdfC = S.dark ? "#BA68C8" : "#8E24AA";
+        const yScale = axTop.ylim[1] * 0.92;
+        const fy = Float64Array.from(latCdf, (v) => v * yScale);
+        axTop.line(z, fy, { color: cdfC, lw: 1.5, dash: [5, 4] });
+        axTop.textAxes(0.97, 0.88, ["F", ["z", "sub"]],
+            { size: 9 * FS, color: cdfC, ha: "right", va: "top",
+              italic: true });
+    }
     axTop.frame({ spines: { top: false, right: false, bottom: false,
                             left: true }, ticksX: false, ticksY: true });
     axTop.ylabel(["p", ["z", "sub"], "(z)"]);
@@ -942,9 +1068,56 @@ function drawFigure() {
     axMain.setYlim(mainY[0], mainY[1]);
     axMain.computeTicks({ nx: 6, ny: 6 });
     if (showGrid) axMain.grid();
-    if (!S.showMapLines) {
+    S._mainAx = { rect: axMain.rect, xlim: mainX.slice(),
+                  ylim: mainY.slice() };
+    if (!S.showMapLines && !showBands) {
         axMain.hline(0, { color: "#999", lw: 0.9 });
         axMain.vline(0, { color: "#999", lw: 0.9 });
+    }
+
+    /* transport bands: band area in the main panel */
+    if (showBands) {
+        const NB = 10;
+        for (let j = 0; j < NB; j++) {
+            const zl = bandEdgesZ[j], zr = bandEdgesZ[j + 1];
+            const sub = linspace(zl, zr, 12);
+            const { x: fsub } = evalTransformDisplay(sub);
+            const col = bandColor(j, NB);
+            const a = (j % 2 === 0) ? 0.16 : 0.09;   // alternate for contrast
+            /* vertical part: from the top edge down to the curve */
+            const p1 = [[zl, mainY[1]], [zr, mainY[1]]];
+            for (let i = sub.length - 1; i >= 0; i--)
+                p1.push([sub[i], fsub[i]]);
+            axMain.polygon(p1, { color: col, alpha: a });
+            /* horizontal part: from the curve out to the right edge */
+            const p2 = [];
+            for (let i = 0; i < sub.length; i++) p2.push([sub[i], fsub[i]]);
+            p2.push([mainX[1], fsub[sub.length - 1]]);
+            p2.push([mainX[1], fsub[0]]);
+            axMain.polygon(p2, { color: col, alpha: a });
+        }
+        /* L-shaped boundary lines make the individual bands legible */
+        for (let j = 0; j <= NB; j++) {
+            axMain.line([bandEdgesZ[j], bandEdgesZ[j]],
+                        [mainY[1], bandEdgesX[j]],
+                        { color: CM, lw: 0.8, alpha: 0.55 });
+            axMain.line([bandEdgesZ[j], mainX[1]],
+                        [bandEdgesX[j], bandEdgesX[j]],
+                        { color: CM, lw: 0.8, alpha: 0.55 });
+        }
+    }
+
+    /* ghost trails: the map at earlier training epochs */
+    if (S.showTrails && S.trail.length > 0) {
+        const P = paramKeys().length;
+        const tc = S.dark ? "#8a8a92" : "#9E9E9E";
+        S.trail.forEach((tp, i) => {
+            if (tp.length !== P) return;
+            const { x: xt } = evalTransformParams(z, tp, S.transform,
+                                                  transformK());
+            axMain.line(z, xt, { color: tc, lw: 1.1,
+                                 alpha: 0.10 + 0.25 * (i + 1) / S.trail.length });
+        });
     }
     /* mapping lines */
     if (S.showMapLines) {
@@ -980,14 +1153,8 @@ function drawFigure() {
     drawRuns((i) => J[i] >= 0, CT_POS, axMain, x);
     drawRuns((i) => J[i] < 0,  CT_NEG, axMain, x);
     /* exact transformation x*(z) */
-    if (S.showExact && tgtCdf !== null) {
-        const dzg = z[1] - z[0];
-        const cdfZ = new Float64Array(nZ);
-        let acc = 0;
-        for (let i = 0; i < nZ; i++) { acc += pZ[i] * dzg; cdfZ[i] = acc; }
-        if (cdfZ[nZ - 1] > 0)
-            for (let i = 0; i < nZ; i++) cdfZ[i] /= cdfZ[nZ - 1];
-        const xStar = interpArr(cdfZ, tgtCdf, tgtXWide);
+    if ((S.showExact || S.showCDF) && tgtCdf !== null) {
+        const xStar = interpArr(latCdf, tgtCdf, tgtXWide);
         axMain.line(z, xStar, { color: CT_TARGET, lw: 1.9 });
     }
     if (!isMonotone) {
@@ -1057,9 +1224,69 @@ function drawFigure() {
         axRight.fillLeft(pTgtCurve, xDispTgt, { color: CT_TARGET, alpha: FA });
         axRight.line(pTgtCurve, xDispTgt, { color: CT_TARGET, lw: 2.4 });
     }
+    if (bandEdgesX !== null && isMonotone) {
+        for (let j = 0; j < 10; j++) {
+            const ylo = Math.min(bandEdgesX[j], bandEdgesX[j + 1]);
+            const yhi = Math.max(bandEdgesX[j], bandEdgesX[j + 1]);
+            const sub = linspace(ylo, yhi, 12);
+            const pts = [[0, ylo]];
+            for (let i = 0; i < sub.length; i++)
+                pts.push([interp1(sub[i], xSorted, pxSorted), sub[i]]);
+            pts.push([0, yhi]);
+            axRight.polygon(pts, { color: bandColor(j, 10), alpha: 0.30 });
+        }
+    }
+    if (S.showU) {
+        const CU = S.dark ? "#90A4AE" : "#607D8B";
+        const yv = linspace(mainY[0], mainY[1], 200);
+        const Uv = Float64Array.from(yv, (v) => potentialU(v, tg));
+        const Umin = arrMin(Uv), Umax = arrMax(Uv);
+        const spanU = (Umax - Umin) || 1;
+        const xU = Float64Array.from(Uv,
+            (v) => (0.08 + 0.84 * (v - Umin) / spanU) * axRight.xlim[1]);
+        axRight.line(xU, yv, { color: CU, lw: 1.6, dash: [2, 3] });
+        axRight.textAxes(0.93, 0.97, "U(x)",
+            { size: 9 * FS, color: CU, ha: "right", va: "top", italic: true });
+    }
+    if (S.showCDF && tgtCdf !== null) {
+        const cdfC = S.dark ? "#BA68C8" : "#8E24AA";
+        const xs = [], ys = [];
+        for (let i = 0; i < tgtXWide.length; i++) {
+            if (tgtXWide[i] < mainY[0] || tgtXWide[i] > mainY[1]) continue;
+            xs.push(tgtCdf[i] * axRight.xlim[1] * 0.92);
+            ys.push(tgtXWide[i]);
+        }
+        axRight.line(xs, ys, { color: cdfC, lw: 1.5, dash: [5, 4] });
+        axRight.textAxes(0.95, 0.06, "F*",
+            { size: 9 * FS, color: cdfC, ha: "right", va: "bottom",
+              italic: true });
+    }
     axRight.frame({ spines: { top: false, right: false, bottom: true,
                               left: false }, ticksY: false });
     axRight.xlabel(["p", ["x", "sub"], "(x)"]);
+
+    /* CDF construction guides: F_z(z_q) = F*(x_q) = q */
+    if (S.showCDF && tgtCdf !== null) {
+        const cdfC = S.dark ? "#BA68C8" : "#8E24AA";
+        const qs = (S.cursor !== null)
+            ? [interp1(clampNum(S.cursor.z, z[0], z[nZ - 1]), z, latCdf)]
+            : [0.25, 0.5, 0.75];
+        for (const q of qs) {
+            if (!(q > 0.001 && q < 0.999)) continue;
+            const zq = interp1(q, latCdf, z);
+            const xq = interp1(q, tgtCdf, tgtXWide);
+            const opts = { color: cdfC, lw: 1.3, dash: [5, 4], alpha: 0.9 };
+            axTop.line([zq, zq], [0, q * axTop.ylim[1] * 0.92], opts);
+            axTop.marker(zq, q * axTop.ylim[1] * 0.92,
+                         { r: 3.5, color: cdfC });
+            axMain.line([zq, zq], [mainY[1], xq], opts);
+            axMain.line([zq, mainX[1]], [xq, xq], opts);
+            axMain.marker(zq, xq, { r: 4, color: cdfC });
+            axRight.line([0, q * axRight.xlim[1] * 0.92], [xq, xq], opts);
+            axRight.marker(q * axRight.xlim[1] * 0.92, xq,
+                           { r: 3.5, color: cdfC });
+        }
+    }
 
     /* — histogram of latent samples — */
     const trainBatch = S.training ? S.trainZBatch : null;
@@ -1248,6 +1475,150 @@ function drawFigure() {
             }
         }
     }
+
+    /* — loss-slice inset: loss as a function of one parameter — */
+    if (S.lossSliceKey !== "None") drawLossSlice(axMain, z, pZ, tg, theme);
+
+    /* — pointer crosshair readout in the map panel — */
+    if (S.cursor !== null && !S.training) {
+        const z0 = clampNum(S.cursor.z, mainX[0], mainX[1]);
+        const { x: x0a, J: J0a } = evalTransformDisplay(
+            new Float64Array([z0]));
+        const x0 = x0a[0], J0 = J0a[0];
+        const pz0 = latentPdf(new Float64Array([z0]), mu, sg, dist)[0];
+        const px0 = Math.abs(J0) > 1e-9 ? pz0 / Math.abs(J0) : NaN;
+        const cc = S.dark ? "#9ec3f0" : "#1565C0";
+        axMain.vline(z0, { color: cc, lw: 1, dash: [4, 4], alpha: 0.65 });
+        axMain.hline(x0, { color: cc, lw: 1, dash: [4, 4], alpha: 0.65 });
+        axMain.marker(z0, x0, { r: 4.2, color: cc });
+        const lines = [
+            [`z = ${z0.toFixed(3)}`],
+            [`x = ${x0.toFixed(3)}`],
+            [`J = ${J0.toFixed(3)}`],
+            ["p", ["z", "sub"], `(z) = ${pz0.toFixed(3)}`],
+            ["p", ["x", "sub"],
+             `(x) = ${Number.isFinite(px0) ? px0.toFixed(3) : "–"}`]];
+        drawInfoBox(axMain, z0, x0, lines, theme);
+    }
+}
+
+/* colour ramp for the transport bands: blue to green over n bands */
+function bandColor(j, n) {
+    const t = n > 1 ? j / (n - 1) : 0;
+    const h = 215 - 85 * t;                     // 215 (blue) .. 130 (green)
+    return `hsl(${h}, 62%, ${S.dark ? 58 : 42}%)`;
+}
+
+/* current display parameters (live > trained > sliders) */
+function displayParams() {
+    let live = S.trainParamsLive;
+    if (live === null && S.useTrainedParams && S.lastTrainedParams !== null)
+        live = S.lastTrainedParams;
+    return live !== null ? live : getParams();
+}
+
+/* small value box next to the crosshair point */
+function drawInfoBox(ax, zd, xd, lines, theme) {
+    const c = ax.ctx;
+    const size = 9.5 * FS, lh = size * 1.35, pad = 10;
+    let wMax = 0;
+    for (const ln of lines)
+        wMax = Math.max(wMax, measureRich(c, ln, size));
+    const bw = wMax + 2 * pad, bh = lines.length * lh + 2 * pad - 4;
+    let bx = ax.px(zd) + 14, by = ax.py(xd) - bh - 12;
+    if (bx + bw > ax.rect.x + ax.rect.w - 4) bx = ax.px(zd) - bw - 14;
+    if (by < ax.rect.y + 4) by = ax.py(xd) + 14;
+    c.save();
+    roundRectPath(c, bx, by, bw, bh, 7);
+    c.fillStyle = S.dark ? "rgba(46,46,53,.92)" : "rgba(255,255,255,.93)";
+    c.fill();
+    c.lineWidth = 1;
+    c.strokeStyle = theme.grid;
+    c.stroke();
+    c.restore();
+    lines.forEach((ln, i) => {
+        drawRich(c, ln, bx + pad, by + pad + (i + 0.7) * lh - 4,
+                 { size, color: theme.fg, align: "left" });
+    });
+}
+
+/* inset: loss as a function of a single selected parameter */
+function drawLossSlice(axMain, z, pZ, tg, theme) {
+    const keys = paramKeys();
+    const key = S.lossSliceKey;
+    const idx = keys.indexOf(key);
+    if (idx < 0 || !sliders[key]) return;
+    const lo = parseFloat(sliders[key].input.min);
+    const hi = parseFloat(sliders[key].input.max);
+    const label = sliders[key].row.querySelector(".lbl").textContent;
+    const base = displayParams();
+    if (base.length !== keys.length) return;
+    const K = transformK();
+    const exampleMode = (S.trainMode === "Example-based" && S.dataX !== null
+                         && S.dataX.length > 0);
+    const dataSub = exampleMode
+        ? S.dataX.slice(0, Math.min(300, S.dataX.length)) : null;
+    const latent = { mu: S.vals["mu"], sigma: S.vals["sg"], dist: S.dist };
+    const nZ = z.length, dzg = z[1] - z[0];
+    let Ipz = 0;
+    for (let i = 0; i < nZ; i++) Ipz += pZ[i] * dzg;
+    const lossAt = (p) => {
+        if (exampleMode)
+            return computeLossExample(p, dataSub, latent, S.transform, K);
+        const { x: xv, J: Jv } = evalTransformParams(z, p, S.transform, K);
+        let s = 0;
+        for (let i = 0; i < nZ; i++) {
+            const Jabs = Math.abs(Jv[i]);
+            if (Jabs <= 1e-12) return NaN;
+            s += pZ[i] * (potentialU(xv[i], tg) / tg.kT - Math.log(Jabs))
+                 * dzg;
+        }
+        return s / Math.max(Ipz, 1e-12);
+    };
+    const NP = 25;
+    const pv = linspace(lo, hi, NP);
+    const lv = new Float64Array(NP);
+    for (let i = 0; i < NP; i++) {
+        const p2 = base.slice();
+        p2[idx] = pv[i];
+        lv[i] = lossAt(p2);
+    }
+    const cur = clampNum(base[idx], lo, hi);
+    const p2 = base.slice(); p2[idx] = cur;
+    const curLoss = lossAt(p2);
+    const fin = Array.from(lv).filter(Number.isFinite);
+    if (fin.length < 2) return;
+    let yLo = Math.min(...fin), yHi = Math.max(...fin);
+    if (Number.isFinite(curLoss)) {
+        yLo = Math.min(yLo, curLoss); yHi = Math.max(yHi, curLoss);
+    }
+    const padY = (yHi - yLo) * 0.10 || 0.1;
+
+    /* inset card in the top-right corner of the map panel */
+    const R = axMain.rect;
+    const card = { x: R.x + R.w - 268, y: R.y + 10, w: 256, h: 158 };
+    const c = axMain.ctx;
+    c.save();
+    roundRectPath(c, card.x, card.y, card.w, card.h, 8);
+    c.fillStyle = S.dark ? "rgba(35,35,42,.90)" : "rgba(255,255,255,.92)";
+    c.fill();
+    c.lineWidth = 1;
+    c.strokeStyle = theme.grid;
+    c.stroke();
+    c.restore();
+    const mini = new Axes(c, { x: card.x + 46, y: card.y + 26,
+                               w: card.w - 60, h: card.h - 56 }, theme);
+    mini.setXlim(lo, hi);
+    mini.setYlim(yLo - padY, yHi + padY);
+    mini.computeTicks({ nx: 3, ny: 3 });
+    mini.grid({ alpha: 0.15 });
+    mini.line(pv, lv, { color: CL_ENER, lw: 1.8 });
+    if (Number.isFinite(curLoss))
+        mini.marker(cur, curLoss, { r: 4, color: CT_POS });
+    mini.frame({ spines: { top: false, right: false, bottom: true,
+                           left: true }, fontSize: 7.5 * FS, tickLen: 3 });
+    drawRich(c, ["loss vs " + label], card.x + card.w / 2, card.y + 16,
+             { size: 8.5 * FS, color: theme.fg, align: "center" });
 }
 
 function drawImportanceWeights(axHistX, displaySamples, xSorted, pxSorted,
@@ -1321,6 +1692,7 @@ function freezeStaticForTraining() {
 
 function doTraining() {
     if (S.training) return;
+    clearTrails();
     S.trainParamsPending = null;
     S.trainingEpoch = 0;
     let nTot = parseInt(UI.nEpochsInput.value, 10);
@@ -1454,6 +1826,11 @@ async function trainLoop() {
         epochUsSum += dtUs;
         S.epochTimeUs = (t === 1) ? dtUs
             : (1 - emaAlpha) * S.epochTimeUs + emaAlpha * dtUs;
+
+        /* keep a few parameter snapshots for the ghost trails */
+        const trailEvery = Math.max(1, Math.round(nEpochs / 8));
+        if (t % trailEvery === 0 && S.trail.length < 12)
+            S.trail.push(params.slice());
 
         if (t % stride === 0 || t === nEpochs) {
             S.trainParamsPending = params.slice();
@@ -1675,7 +2052,7 @@ function buildShareState() {
         d: S.dist, t: S.transform, K: S.K, KR: S.Krqs, dk: S.dark,
         v: { ...S.vals },
         c: [S.showTarget, S.showExact, S.showData, S.showIW,
-            S.showMapLines, S.rescale],
+            S.showMapLines, S.rescale, S.showU, S.showCDF, S.showBands],
         i: { ne: UI.nEntryInput.value, nm: UI.nMapInput.value,
              ep: UI.nEpochsInput.value, lr: UI.lrInput.value,
              nb: UI.nBatchInput.value, st: UI.strideInput.value,
@@ -1705,7 +2082,7 @@ function applyShareState(st) {
                 if (k in S.vals && Number.isFinite(val)) setVal(k, val);
         } finally { S.suppressRedraw = false; }
     }
-    if (Array.isArray(st.c) && st.c.length === 6) {
+    if (Array.isArray(st.c) && st.c.length >= 6) {
         setCheckbox(UI.showTargetCb, "showTarget", !!st.c[0]);
         setCheckbox(UI.showExactCb, "showExact", !!st.c[1]);
         setCheckbox(UI.showDataCb, "showData", !!st.c[2]);
@@ -1713,6 +2090,11 @@ function applyShareState(st) {
         setCheckbox(UI.showMapCb, "showMapLines", !!st.c[4]);
         UI.rescaleCb.checked = !!st.c[5];
         S.rescale = !!st.c[5];
+        if (st.c.length >= 9) {
+            setCheckbox(UI.showUCb, "showU", !!st.c[6]);
+            setCheckbox(UI.showCDFCb, "showCDF", !!st.c[7]);
+            setCheckbox(UI.showBandsCb, "showBands", !!st.c[8]);
+        }
     }
     if (st.i) {
         if (st.i.ne) UI.nEntryInput.value = st.i.ne;
@@ -1873,6 +2255,20 @@ function applyTooltips() {
     tip(UI.showMapCb, "Draw guide lines that show how individual points z " +
         "travel through the map to x = f_θ(z).");
     tip(UI.nMapInput, "Number of mapping lines to draw (up to 100).");
+    tip(UI.showBandsCb, "Divide the latent density into ten bands of equal " +
+        "probability mass and follow them through the map. The width of " +
+        "each band shows the local stretching; its area is conserved.");
+    tip(UI.showUCb, "Display the potential U(x) next to the transformed " +
+        "density (arbitrary vertical scale).");
+    tip(UI.showCDFCb, "Illustrate the construction of the exact map " +
+        "x*(z) = F*⁻¹(F_z(z)) from the two cumulative distribution " +
+        "functions. Move the pointer over the map panel to select the " +
+        "quantile.");
+    tip(UI.showTrailsCb, "Keep faded copies of the map from earlier epochs " +
+        "of the last training run.");
+    tip(UI.lossSliceSelect, "Display the loss as a function of a single " +
+        "parameter around the current value, with a marker at the current " +
+        "position.");
 
     tip(UI.nEntryInput, "Number of points drawn by 'Sample' and 'Data'.");
     tip(UI.showDataCb, "Show the generated example data as a histogram in " +
@@ -1995,7 +2391,32 @@ function init() {
     setupFullscreenButton();
     initDownloadButton();
     initShareButton();
+    updateLossSliceOptions();
     applyStateFromHash();
+
+    /* crosshair readout: track the pointer over the map panel */
+    if (window.matchMedia("(hover: hover)").matches) {
+        canvas.addEventListener("mousemove", (e) => {
+            if (!S._view || !S._mainAx) return;
+            const r = canvas.getBoundingClientRect();
+            const lx = (e.clientX - r.left - S._view.ox) / S._view.s;
+            const ly = (e.clientY - r.top - S._view.oy) / S._view.s;
+            const A = S._mainAx;
+            if (lx >= A.rect.x && lx <= A.rect.x + A.rect.w &&
+                ly >= A.rect.y && ly <= A.rect.y + A.rect.h) {
+                const zd = A.xlim[0] + (lx - A.rect.x) / A.rect.w
+                           * (A.xlim[1] - A.xlim[0]);
+                S.cursor = { z: zd };
+                requestRender();
+            } else if (S.cursor !== null) {
+                S.cursor = null;
+                requestRender();
+            }
+        });
+        canvas.addEventListener("mouseleave", () => {
+            if (S.cursor !== null) { S.cursor = null; requestRender(); }
+        });
+    }
 
     if ("serviceWorker" in navigator &&
         (window.location.protocol === "https:" ||
