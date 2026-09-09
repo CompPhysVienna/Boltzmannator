@@ -1,4 +1,4 @@
-"""Boltzmannator — NiceGUI normalising-flow visualiser."""
+"""Boltzmannator — NiceGUI normalizing-flow visualiser."""
 
 import os
 import threading

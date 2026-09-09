@@ -1821,7 +1821,7 @@ const SLIDER_TIPS = {
         "around x = 0; negative values produce a double well.",
     u3: "Cubic coefficient u₃; it makes the potential asymmetric.",
     u4: "Quartic coefficient u₄; it confines the density at large |x| and " +
-        "keeps p*(x) normalisable.",
+        "keeps p*(x) normalizable.",
     t0: "θ₀, the constant term of the polynomial map.",
     t1: "θ₁, the linear coefficient of the polynomial map.",
     t2: "θ₂, the quadratic coefficient; large values can make the map " +
@@ -1844,9 +1844,9 @@ for (let k = 0; k < 8; k++) {
 }
 for (let k = 0; k < 4; k++) {
     SLIDER_TIPS[`rqs_w${k}`] = `Relative width of spline bin ${k + 1} ` +
-        `(softmax-normalised over the bins).`;
+        `(softmax-normalized over the bins).`;
     SLIDER_TIPS[`rqs_h${k}`] = `Relative height of spline bin ${k + 1} ` +
-        `(softmax-normalised over the bins).`;
+        `(softmax-normalized over the bins).`;
 }
 for (let k = 0; k <= 4; k++)
     SLIDER_TIPS[`rqs_d${k}`] = `Log-derivative of the spline at knot ${k}: ` +

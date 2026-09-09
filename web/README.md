@@ -1,6 +1,6 @@
 # Boltzmannator — JavaScript edition
 
-An interactive visualiser for one-dimensional **normalising flows**, running
+An interactive visualiser for one-dimensional **normalizing flows**, running
 entirely in your web browser. Choose a latent distribution *p_z(z)*, shape it
 with a parametric transformation *x = f_θ(z)*, and watch the push-forward
 density *p_x(x)*. Then train the transformation to match a target Boltzmann

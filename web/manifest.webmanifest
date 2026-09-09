@@ -1,7 +1,7 @@
 {
   "name": "Boltzmannator",
   "short_name": "Boltzmannator",
-  "description": "Interactive visualiser for one-dimensional normalising flows and Boltzmann generators.",
+  "description": "Interactive visualiser for one-dimensional normalizing flows and Boltzmann generators.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

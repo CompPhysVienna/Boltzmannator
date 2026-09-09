@@ -13,7 +13,7 @@
 <title>Boltzmannator</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-192.png">
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
 <div id="app">
@@ -22,7 +22,7 @@
   <aside id="panel">
     <div id="header-row">
       <img id="header-img" src="img/Boltzmannator_title.png" alt="Boltzmannator"
-           data-tip="The Boltzmannator shows how a normalising flow reshapes a simple latent distribution into a target Boltzmann distribution and how this transformation is learned by training.">
+           data-tip="The Boltzmannator shows how a normalizing flow reshapes a simple latent distribution into a target Boltzmann distribution and how this transformation is learned by training.">
       <div id="pic-dots"></div>
     </div>
 
@@ -47,7 +47,7 @@
         <span class="nabla">&#8711;</span><span>Training</span>
       </button>
       <button class="tab tab-icon" id="btn-theory" aria-label="Theory"
-              data-tip="The theory behind Boltzmann generators and normalising flows">
+              data-tip="The theory behind Boltzmann generators and normalizing flows">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
           <path d="M12 6.2 C 9.8 4.6 6.8 4.6 4.5 5.6 V 18.6 C 6.8 17.6 9.8 17.6 12 19.2
                    C 14.2 17.6 17.2 17.6 19.5 18.6 V 5.6 C 17.2 4.6 14.2 4.6 12 6.2 Z"
@@ -100,7 +100,7 @@
         <div id="overlay-scroll">
 
           <article id="doc-theory" class="doc hidden">
-            <h2>Boltzmann generators and normalising flows</h2>
+            <h2>Boltzmann generators and normalizing flows</h2>
             <p class="lead">This application illustrates, in one dimension,
             the principle of <em>Boltzmann generators</em>: an invertible
             transformation is trained to map a simple, easily sampled
@@ -139,8 +139,8 @@
             over a larger range and the density decreases; where the map
             contracts, the density increases. The bottom left panel shows the
             factor |J|<sup>&minus;1</sup>. Since f<sub>&theta;</sub> is
-            invertible, p<sub>x</sub> is normalised by construction. This
-            construction is called a <em>normalising flow</em>.</p>
+            invertible, p<sub>x</sub> is normalized by construction. This
+            construction is called a <em>normalizing flow</em>.</p>
 
             <h3>3&ensp;&middot;&ensp;Training the flow</h3>
             <p>The parameters &theta; are adjusted by gradient descent such
@@ -204,7 +204,7 @@
             constructed from the two cumulative distribution functions
             (<em>Show exact transformation</em>). In higher dimensions no
             such formula exists and the transformation must be learned; this
-            is the setting in which normalising flows are applied in
+            is the setting in which normalizing flows are applied in
             practice.</p>
 
             <h3>Further reading</h3>
@@ -336,8 +336,8 @@
   </main>
 
 </div>
-<script src="js/math.js?v=13"></script>
-<script src="js/plots.js?v=13"></script>
-<script src="js/app.js?v=13"></script>
+<script src="js/math.js?v=14"></script>
+<script src="js/plots.js?v=14"></script>
+<script src="js/app.js?v=14"></script>
 </body>
 </html>

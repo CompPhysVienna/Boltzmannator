@@ -1,6 +1,6 @@
 # Boltzmannator
 
-An interactive visualiser for one‑dimensional **normalising flows**. Choose a
+An interactive visualiser for one‑dimensional **normalizing flows**. Choose a
 latent distribution *p_z(z)*, shape it with a parametric transformation
 *x = f_θ(z)*, and watch the push‑forward density *p_x(x)*. Then train the
 transformation to match a target Boltzmann distribution *p\*(x)* or example
