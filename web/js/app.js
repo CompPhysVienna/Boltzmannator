@@ -2002,6 +2002,14 @@ function applyPreset(name) {
         setTargetDoubleWell();
         switchTab("train");
         break;
+    case "bands":
+        UI.showBandsCb.input.checked = true;
+        S.showBands = true;
+        UI.showMapCb.input.checked = false;
+        S.showMapLines = false;
+        setVal("w0", 1.5); setVal("w1", 2.0); setVal("w2", 1.0);
+        switchTab("map");
+        break;
     case "slow-motion":
         UI.delayInput.value = "200";
         UI.strideInput.value = "1";

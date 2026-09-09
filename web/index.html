@@ -13,7 +13,7 @@
 <title>Boltzmannator</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-192.png">
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 <div id="app">
@@ -248,6 +248,11 @@
               target</em> is active (automatically during training).</li>
               <li>Right column: histograms of the latent and transformed
               <b>samples</b>, and the <b>training loss</b>.</li>
+              <li>While the target is shown, the top left corner reports the
+              <b>variational free energy</b> &beta;F<sub>flow</sub>, the
+              exact &beta;F<sub>exact</sub> = &minus;ln Z and their
+              difference, the Kullback&ndash;Leibler divergence
+              KL(p<sub>x</sub>&thinsp;&Vert;&thinsp;p<sup>*</sup>).</li>
             </ul>
 
             <h3>Densities tab</h3>
@@ -298,6 +303,12 @@
               unimodal density splits into two peaks.
               <button class="try-btn" data-preset="double-well">Set up
               &rarr;</button></li>
+              <li><b>Transport of probability mass.</b> Activate
+              <em>Show transport bands</em> on the <em>Map</em> tab and drag
+              the map parameters. Each coloured band carries 10% of the
+              probability; the map changes its width but never its mass.
+              <button class="try-btn" data-preset="bands">Set up
+              &rarr;</button></li>
               <li><b>Slow motion.</b> Set <em>Delay</em> to 200&nbsp;ms and
               <em>Every</em> to 1 to display every epoch.
               <button class="try-btn" data-preset="slow-motion">Set up
@@ -347,8 +358,8 @@
   </main>
 
 </div>
-<script src="js/math.js?v=15"></script>
-<script src="js/plots.js?v=15"></script>
-<script src="js/app.js?v=15"></script>
+<script src="js/math.js?v=16"></script>
+<script src="js/plots.js?v=16"></script>
+<script src="js/app.js?v=16"></script>
 </body>
 </html>
