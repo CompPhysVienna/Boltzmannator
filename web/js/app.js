@@ -1653,7 +1653,7 @@ function drawLossSlice(axMain, z, pZ, tg, theme) {
 
     /* inset card in the top-right corner of the map panel */
     const R = axMain.rect;
-    const card = { x: R.x + R.w - 268, y: R.y + 10, w: 256, h: 158 };
+    const card = { x: R.x + R.w - 268, y: R.y + 10, w: 256, h: 166 };
     const c = axMain.ctx;
     c.save();
     roundRectPath(c, card.x, card.y, card.w, card.h, 8);
@@ -1674,7 +1674,9 @@ function drawLossSlice(axMain, z, pZ, tg, theme) {
         mini.marker(cur, curLoss, { r: 4, color: CT_POS });
     mini.frame({ spines: { top: false, right: false, bottom: true,
                            left: true }, fontSize: 7.5 * FS, tickLen: 3 });
-    drawRich(c, ["loss vs " + label], card.x + card.w / 2, card.y + 16,
+    mini.xlabel(label, { size: 8.5 * FS, offset: 26 });
+    mini.ylabel("loss", { size: 8.5 * FS, offset: 34 });
+    drawRich(c, ["loss slice"], card.x + card.w / 2, card.y + 16,
              { size: 8.5 * FS, color: theme.fg, align: "center" });
 }
 
