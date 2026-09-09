@@ -1512,6 +1512,27 @@ function drawFigure() {
         titleRect(axHistX, "Transformed x", 6),
         titleRect(axLoss, "Training loss", 30)]);
 
+    /* hover targets over the axis labels of the left figure area */
+    const ylabelRect = (ax, spec) => {
+        const sz = 12 * FS;
+        const tw = measureRich(ctx, spec, sz);
+        return { x: ax.rect.x - 40 - sz - 4,
+                 y: ax.rect.y + ax.rect.h / 2 - tw / 2 - 6,
+                 w: sz + 16, h: tw + 12 };
+    };
+    const xlabelRect = (ax, spec) => {
+        const sz = 12 * FS;
+        const tw = measureRich(ctx, spec, sz);
+        return { x: ax.rect.x + ax.rect.w / 2 - tw / 2 - 6,
+                 y: ax.rect.y + ax.rect.h + 34 - sz - 4,
+                 w: tw + 12, h: sz + 12 };
+    };
+    positionHots(UI.mainHots, [
+        ylabelRect(axTop, ["p", ["z", "sub"], "(z)"]),
+        ylabelRect(axMain, ["x = f", ["θ", "sub"], "(z)"]),
+        ylabelRect(axLogj, ["|J|", ["−1", "sup"]]),
+        xlabelRect(axRight, ["p", ["x", "sub"], "(x)"])]);
+
     /* — loss-slice inset: loss as a function of one parameter — */
     if (S.lossSliceKey !== "None") drawLossSlice(axMain, z, pZ, tg, theme);
 
@@ -2439,9 +2460,30 @@ function makeHotspots(tips) {
     });
 }
 
+const MAIN_TIPS = [
+    "Latent density p<sub>z</sub>(z): the simple, easily sampled " +
+    "starting distribution, selected on the Densities tab. Samples of " +
+    "this density are transformed into samples of p<sub>x</sub>(x).",
+    "Transformation x = f<sub>θ</sub>(z): the invertible map that " +
+    "carries the latent variable z to x. Its parameters θ are set on " +
+    "the Map tab or optimised by training. Segments with negative slope " +
+    "are drawn in a different colour; orange dots mark points where the " +
+    "map is not invertible.",
+    "Inverse Jacobian |J|<sup>−1</sup> = " +
+    "|df<sub>θ</sub>/dz|<sup>−1</sup>: the local compression factor of " +
+    "the map. The transformed density is p<sub>x</sub>(x) = " +
+    "p<sub>z</sub>(z)&thinsp;|J|<sup>−1</sup>; values above 1 raise the " +
+    "density, values below 1 lower it.",
+    "Transformed density p<sub>x</sub>(x) = " +
+    "p<sub>z</sub>(z)&thinsp;|df<sub>θ</sub>/dz|<sup>−1</sup>, drawn " +
+    "sideways so that it shares the x axis with the map. During " +
+    "training it approaches the target p*(x).",
+];
+
 function initFeHotspots() {
     UI.feHots = makeHotspots(FE_TIPS);
     UI.panelHots = makeHotspots(PANEL_TIPS);
+    UI.mainHots = makeHotspots(MAIN_TIPS);
 }
 
 function positionHots(hots, rects) {
