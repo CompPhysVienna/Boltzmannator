@@ -2373,7 +2373,7 @@ function initTooltips() {
         if (!t) return;
         current = t;
         timer = setTimeout(() => {
-            tipEl.textContent = t.dataset.tip;
+            tipEl.innerHTML = t.dataset.tip;   // tips are app-authored
             tipEl.classList.add("show");
             const r = t.getBoundingClientRect();
             const tr = tipEl.getBoundingClientRect();
@@ -2395,14 +2395,21 @@ function initTooltips() {
 /* invisible hover targets over the canvas free-energy readout, so the
    three quantities get explanation boxes like every other control */
 const FE_TIPS = [
-    "Variational free energy of the flow, βF_flow = ⟨ln p_z⟩ + " +
-    "⟨U/k_BT − ln|J|⟩, evaluated for the current transformation. By the " +
-    "Gibbs–Bogoliubov inequality it is never smaller than βF_exact; " +
-    "training lowers it towards that bound.",
-    "Exact free energy of the target distribution, βF_exact = −ln Z, " +
-    "obtained by numerical integration of exp(−U(x)/k_BT). A perfect " +
-    "flow reaches this lower bound.",
-    "Kullback–Leibler divergence KL(p_x ‖ p*) = βF_flow − βF_exact ≥ 0. " +
+    "Variational free energy of the flow,<br>" +
+    "βF<sub>flow</sub> = ∫ p<sub>x</sub>(x) [U(x)/k<sub>B</sub>T + " +
+    "ln p<sub>x</sub>(x)] dx,<br>" +
+    "evaluated for the current transformation. By the Gibbs–Bogoliubov " +
+    "inequality it is never smaller than βF<sub>exact</sub>; training " +
+    "lowers it towards that bound.",
+    "Exact free energy of the target distribution, " +
+    "βF<sub>exact</sub> = −ln Z, with the partition function<br>" +
+    "Z = ∫ exp(−U(x)/k<sub>B</sub>T) dx,<br>" +
+    "obtained by numerical integration. A perfect flow reaches this " +
+    "lower bound.",
+    "Kullback–Leibler divergence<br>" +
+    "KL(p<sub>x</sub>‖p*) = ∫ p<sub>x</sub>(x) " +
+    "ln[p<sub>x</sub>(x)/p*(x)] dx = βF<sub>flow</sub> − " +
+    "βF<sub>exact</sub> ≥ 0.<br>" +
     "It measures how much the flow deviates from the target and vanishes " +
     "exactly when the two distributions coincide.",
 ];
