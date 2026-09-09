@@ -111,6 +111,8 @@ html, body {
   box-shadow: 0 1px 3px rgba(0,0,0,.25);
 }
 .tab .nabla { font-size: 19px; font-weight: 600; line-height: 1; }
+.tab.tab-icon { flex: 0 0 38px; padding: 0; }
+.tab.tab-icon .qmark { font-size: 17px; font-weight: 700; line-height: 1; }
 
 /* ── Scrollable tab content ─────────────────────────────────────────── */
 
@@ -333,6 +335,69 @@ label.switch input:checked + .track::after { left: 17px; }
 }
 #plot { flex: 1; min-width: 0; min-height: 0; width: 100%; height: 100%; }
 
+/* ── Theory / Help overlay ──────────────────────────────────────────── */
+
+#overlay {
+  position: absolute; inset: 14px; z-index: 10; display: flex;
+}
+#overlay-card {
+  flex: 1; min-width: 0; min-height: 0; position: relative;
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--shadow);
+  overflow: hidden; display: flex;
+}
+#overlay-close {
+  position: absolute; top: 10px; right: 12px; z-index: 2;
+  width: 32px; height: 32px; border: none; border-radius: 50%;
+  background: var(--tabs-bg); color: var(--muted);
+  font-size: 21px; line-height: 1; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+#overlay-close:hover { background: var(--accent); color: #fff; }
+#overlay-scroll {
+  flex: 1; overflow-y: auto; padding: 26px 42px 34px;
+  scrollbar-width: thin;
+}
+.doc { max-width: 760px; margin: 0 auto; font-size: 14.5px;
+       line-height: 1.55; color: var(--text); }
+.doc h2 { font-size: 23px; font-weight: 700; margin: 0 0 8px;
+          letter-spacing: -.2px; }
+.doc h3 { font-size: 15.5px; font-weight: 700; margin: 20px 0 5px;
+          color: var(--accent); }
+html.dark .doc h3 { color: #6ba3e8; }
+.doc p { margin: 6px 0; }
+.doc .lead { font-size: 15px; color: var(--muted); margin-bottom: 12px; }
+.doc .eq {
+  display: block; text-align: center; margin: 10px 0;
+  font-family: Georgia, "Times New Roman", serif; font-style: italic;
+  font-size: 16.5px;
+}
+.doc ul, .doc ol { margin: 6px 0; padding-left: 22px; }
+.doc li { margin: 4px 0; }
+.doc .refs { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.doc .cdot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  vertical-align: baseline; margin-right: 1px;
+}
+.doc i, .doc em { font-style: italic; }
+
+/* ── Hover tooltips ─────────────────────────────────────────────────── */
+
+#tooltip {
+  position: fixed; z-index: 100; max-width: 280px;
+  background: #2c2c33; color: #f0f0f2;
+  border: 1px solid #46464f;
+  border-radius: 8px; padding: 7px 10px;
+  font-size: 12.5px; line-height: 1.45;
+  box-shadow: 0 4px 14px rgba(0,0,0,.30);
+  opacity: 0; pointer-events: none;
+  transition: opacity .12s ease-out;
+}
+#tooltip.show { opacity: 1; }
+html.dark #tooltip { background: #3a3a44; border-color: #55555f; }
+
 /* ════════════════════════════════════════════════════════════════════════
    MOBILE / TOUCH
    On a narrow PORTRAIT screen the desktop side-by-side layout does not fit,
@@ -375,6 +440,16 @@ label.switch input:checked + .track::after { left: 17px; }
      is a desktop nicety; it returns in landscape and on wider screens.) */
   #header-row { display: none; }
   #tab-scroll { padding-right: 2px; }
+
+  /* Theory/Help: the plot band is too small a home on a phone held upright —
+     let the overlay cover the whole screen instead. */
+  #overlay {
+    position: fixed;
+    inset: calc(8px + env(safe-area-inset-top)) 8px
+           calc(8px + env(safe-area-inset-bottom));
+    z-index: 50;
+  }
+  #overlay-scroll { padding: 20px 18px 26px; }
 }
 
 /* Very short portrait (small phones): give the plot a bit less height */

@@ -118,7 +118,7 @@ function button(label, cls, onClick, tooltip, full = false) {
     const b = el("button", {
         class: `btn ${cls} ${full ? "full" : "grow"}`,
         text: label, onclick: onClick });
-    if (tooltip) b.title = tooltip;
+    if (tooltip) b.dataset.tip = tooltip;
     return b;
 }
 
@@ -497,13 +497,14 @@ function buildTrainingTab() {
 }
 
 function buildTabs() {
-    const tabs = document.querySelectorAll("#tabs .tab");
+    const tabs = document.querySelectorAll("#tabs .tab:not(.tab-icon)");
     tabs.forEach((btn) => {
         btn.addEventListener("click", () => {
             tabs.forEach((b) => b.classList.toggle("active", b === btn));
             for (const name of ["dist", "map", "train"])
                 document.getElementById(`tab-${name}`).classList
                         .toggle("hidden", name !== btn.dataset.tab);
+            setOverlay(null);      // back to the figure
         });
     });
 }
@@ -1533,6 +1534,179 @@ function toggleDark(value) {
 
 /* ── Boot ───────────────────────────────────────────────────────────────── */
 
+/* ── Theory / Help overlay ──────────────────────────────────────────────── */
+
+let overlayDoc = null;        // null | "theory" | "help"
+
+function setOverlay(doc) {
+    overlayDoc = doc;
+    document.getElementById("overlay").classList.toggle("hidden", !doc);
+    document.getElementById("doc-theory").classList
+            .toggle("hidden", doc !== "theory");
+    document.getElementById("doc-help").classList
+            .toggle("hidden", doc !== "help");
+    document.getElementById("btn-theory").classList
+            .toggle("active", doc === "theory");
+    document.getElementById("btn-help").classList
+            .toggle("active", doc === "help");
+    if (doc) document.getElementById("overlay-scroll").scrollTop = 0;
+}
+
+function initOverlay() {
+    document.getElementById("btn-theory").addEventListener("click",
+        () => setOverlay(overlayDoc === "theory" ? null : "theory"));
+    document.getElementById("btn-help").addEventListener("click",
+        () => setOverlay(overlayDoc === "help" ? null : "help"));
+    document.getElementById("overlay-close").addEventListener("click",
+        () => setOverlay(null));
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlayDoc) setOverlay(null);
+    });
+}
+
+/* ── Hover tooltips ─────────────────────────────────────────────────────── */
+
+const SLIDER_TIPS = {
+    mu: "Mean μ of the latent distribution — for Bimodal, the two peaks " +
+        "sit at ±μ.",
+    sg: "Standard deviation σ — the width of the latent distribution.",
+    kT: "Temperature k_BT of the target: higher temperature flattens p*(x).",
+    u1: "Linear coefficient u₁ of the potential U(x): tilts the potential.",
+    u2: "Quadratic coefficient u₂: positive confines the density around " +
+        "x = 0; negative creates a double well.",
+    u3: "Cubic coefficient u₃: makes the potential asymmetric.",
+    u4: "Quartic coefficient u₄: confines the density at large |x| and " +
+        "keeps p*(x) normalisable.",
+    t0: "θ₀ — constant offset of the polynomial map.",
+    t1: "θ₁ — linear slope of the polynomial map.",
+    t2: "θ₂ — quadratic term; large values can make the map non-invertible.",
+    t3: "θ₃ — cubic term; large values can make the map non-invertible.",
+    sig_off:   "a — constant offset of the map: shifts the whole " +
+               "distribution.",
+    sig_slope: "b — linear slope of the map: stretches or compresses the " +
+               "distribution.",
+    rqs_B: "B — half-width of the spline interval [−B, B]; outside it the " +
+           "map is the identity.",
+};
+for (let k = 0; k < 8; k++) {
+    SLIDER_TIPS[`w${k}`] = `w${k + 1} — weight (step height) of sigmoid ` +
+        `unit ${k + 1}: how much probability it moves.`;
+    SLIDER_TIPS[`c${k}`] = `c${k + 1} — centre of sigmoid unit ${k + 1}: ` +
+        `where in z the step happens.`;
+    SLIDER_TIPS[`s${k}`] = `s${k + 1} — width of sigmoid unit ${k + 1}: ` +
+        `small values give a sharp step.`;
+}
+for (let k = 0; k < 4; k++) {
+    SLIDER_TIPS[`rqs_w${k}`] = `Relative width of spline bin ${k + 1} ` +
+        `(softmax-normalised over the bins).`;
+    SLIDER_TIPS[`rqs_h${k}`] = `Relative height of spline bin ${k + 1} ` +
+        `(softmax-normalised over the bins).`;
+}
+for (let k = 0; k <= 4; k++)
+    SLIDER_TIPS[`rqs_d${k}`] = `Log-derivative of the spline at knot ${k}: ` +
+        `the local slope of the map there.`;
+
+function applyTooltips() {
+    const tip = (target, text) => {
+        if (target) (target.root || target).dataset.tip = text;
+    };
+    for (const [key, text] of Object.entries(SLIDER_TIPS))
+        if (sliders[key]) sliders[key].row.dataset.tip = text;
+
+    tip(UI.distSelect, "Choose the latent distribution p_z(z) — the simple, " +
+        "easy-to-sample density that the transformation reshapes.");
+    tip(UI.showTargetCb, "Overlay the target Boltzmann density p*(x) in the " +
+        "density panels.");
+    tip(UI.showExactCb, "Draw the exact transformation x*(z) that maps " +
+        "p_z(z) perfectly onto p*(x), computed from the two cumulative " +
+        "distributions.");
+    tip(UI.transformSelect, "Choose the family of the transformation " +
+        "x = f_θ(z).");
+    tip(UI.kRadio, "Number of sigmoid units K — more units make the map " +
+        "more flexible.");
+    tip(UI.kRqsRadio, "Number of spline bins K — more bins make the map " +
+        "more flexible.");
+    tip(UI.showMapCb, "Draw guide lines that show how individual points z " +
+        "travel through the map to x = f_θ(z).");
+    tip(UI.nMapInput, "Number of mapping lines to draw (up to 100).");
+
+    tip(UI.nEntryInput, "Number of points drawn by 'Sample!' and 'Data'.");
+    tip(UI.showDataCb, "Show the generated example data as a histogram in " +
+        "the 'Transformed x' panel.");
+    tip(UI.showIwCb, "Show the importance weights w(x) = p*(x)/p_x(x) and " +
+        "the effective sample size N_eff — a measure of how well the flow " +
+        "matches the target.");
+    tip(UI.optSelect, "Gradient-descent variant used to update the " +
+        "parameters.");
+    tip(UI.nEpochsInput, "Number of training epochs (gradient steps).");
+    tip(UI.lrInput, "Learning rate — the step size of the optimiser. " +
+        "Reduce it if the loss diverges.");
+    tip(UI.nBatchInput, "Number of latent samples per epoch used to " +
+        "estimate the loss and its gradient.");
+    tip(UI.resampleCb, "Draw a fresh latent batch every epoch — otherwise " +
+        "the same batch is reused for the whole training.");
+    tip(UI.strideInput, "Update the figure every this many epochs.");
+    tip(UI.delayInput, "Pause between figure updates, in milliseconds — " +
+        "increase it to watch the training in slow motion.");
+    if (UI.modeRadio) {
+        const labs = UI.modeRadio.root.querySelectorAll("label");
+        if (labs[0]) labs[0].dataset.tip = "Minimise ⟨U/k_BT − log|J|⟩ over " +
+            "latent samples (reverse KL). Needs only the potential U(x), " +
+            "no data.";
+        if (labs[1]) labs[1].dataset.tip = "Maximise the likelihood of the " +
+            "example data (forward KL). Needs the points generated with " +
+            "'Data'.";
+    }
+
+    /* static controls declared in the HTML */
+    const rescaleLabel = UI.rescaleCb ? UI.rescaleCb.closest("label") : null;
+    if (rescaleLabel) rescaleLabel.dataset.tip = "Recompute the axis ranges " +
+        "automatically after every change — untick to freeze them for " +
+        "comparisons.";
+    for (const elTitled of document.querySelectorAll("#panel [title]")) {
+        elTitled.dataset.tip = elTitled.title;
+        elTitled.removeAttribute("title");
+    }
+    for (const dot of document.querySelectorAll(".pic-dot"))
+        dot.dataset.tip = "Choose the header picture.";
+}
+
+function initTooltips() {
+    if (!window.matchMedia("(hover: hover)").matches) return;   // touch: skip
+    const tipEl = el("div", { id: "tooltip" });
+    document.body.appendChild(tipEl);
+    let timer = null, current = null;
+    const hide = () => {
+        if (timer) clearTimeout(timer);
+        timer = null; current = null;
+        tipEl.classList.remove("show");
+    };
+    document.addEventListener("mouseover", (e) => {
+        const t = e.target.closest ? e.target.closest("[data-tip]") : null;
+        if (t === current) return;
+        hide();
+        if (!t) return;
+        current = t;
+        timer = setTimeout(() => {
+            tipEl.textContent = t.dataset.tip;
+            tipEl.classList.add("show");
+            const r = t.getBoundingClientRect();
+            const tr = tipEl.getBoundingClientRect();
+            let x = r.left + r.width / 2 - tr.width / 2;
+            x = Math.max(8, Math.min(x, window.innerWidth - tr.width - 8));
+            let y = r.bottom + 8;
+            if (y + tr.height > window.innerHeight - 8)
+                y = r.top - tr.height - 8;
+            tipEl.style.left = `${x}px`;
+            tipEl.style.top = `${y}px`;
+        }, 350);
+    });
+    document.addEventListener("mouseout", (e) => {
+        if (current && !current.contains(e.relatedTarget)) hide();
+    });
+    document.addEventListener("mousedown", hide);
+}
+
 function init() {
     canvas = document.getElementById("plot");
     ctx = canvas.getContext("2d");
@@ -1542,6 +1716,7 @@ function init() {
     buildDensitiesTab();
     buildMapTab();
     buildTrainingTab();
+    initOverlay();
 
     UI.rescaleCb = document.getElementById("cb-rescale");
     UI.rescaleCb.addEventListener("change",
@@ -1554,6 +1729,9 @@ function init() {
         window.close();
         setTimeout(() => { window.location.href = "about:blank"; }, 150);
     });
+
+    applyTooltips();
+    initTooltips();
 
     onTransformChange();
 
