@@ -434,7 +434,7 @@ function buildTrainingTab() {
     t.appendChild(el("div", { class: "row" },
         el("span", { text: "N =" }), UI.nEntryInput));
     t.appendChild(el("div", { class: "row gap" },
-        button("Sample!", "btn-primary", doSampling,
+        button("Sample", "btn-primary", doSampling,
                "Draw N samples from the latent distribution and push them " +
                "through the transformation"),
         button("Data", "btn-teal", doGenerateData,
@@ -476,7 +476,7 @@ function buildTrainingTab() {
         el("span", { text: "ms" })));
 
     t.appendChild(el("div", { class: "row gap" },
-        button("Train!", "btn-positive", doTraining,
+        button("Train", "btn-positive", doTraining,
                "Optimise the transformation parameters"),
         button("Stop", "btn-negative", stopTraining,
                "Stop the running training")));
@@ -1085,7 +1085,7 @@ function drawFigure() {
         axHistZ.frame({ spines: { top: false, right: false, bottom: true,
                                   left: true },
                         ticksX: false, ticksY: false });
-        axHistZ.textAxes(0.5, 0.5, "Press  'Sample!'\nto generate points",
+        axHistZ.textAxes(0.5, 0.5, "Press  'Sample'\nto generate points",
             { size: 9 * FS, color: "#888", bbox: ph });
     }
 
@@ -1145,7 +1145,7 @@ function drawFigure() {
         axHistX.frame({ spines: { top: false, right: false, bottom: true,
                                   left: true },
                         ticksX: false, ticksY: false });
-        axHistX.textAxes(0.5, 0.5, "Press  'Sample!'\nto generate points",
+        axHistX.textAxes(0.5, 0.5, "Press  'Sample'\nto generate points",
             { size: 9 * FS, color: "#888", bbox: ph });
     }
 
@@ -1210,7 +1210,7 @@ function drawFigure() {
         axLoss.frame({ spines: { top: false, right: false, bottom: true,
                                  left: true },
                        ticksX: false, ticksY: false });
-        axLoss.textAxes(0.5, 0.5, "Press  'Train!'\nto start training",
+        axLoss.textAxes(0.5, 0.5, "Press  'Train'\nto start training",
             { size: 9 * FS, color: "#888", bbox: ph });
     }
 
@@ -1874,7 +1874,7 @@ function applyTooltips() {
         "travel through the map to x = f_θ(z).");
     tip(UI.nMapInput, "Number of mapping lines to draw (up to 100).");
 
-    tip(UI.nEntryInput, "Number of points drawn by 'Sample!' and 'Data'.");
+    tip(UI.nEntryInput, "Number of points drawn by 'Sample' and 'Data'.");
     tip(UI.showDataCb, "Show the generated example data as a histogram in " +
         "the 'Transformed x' panel.");
     tip(UI.showIwCb, "Show the importance weights w(x) = p*(x)/p_x(x) and the " +

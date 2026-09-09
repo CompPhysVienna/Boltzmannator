@@ -13,7 +13,7 @@
 <title>Boltzmannator</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-192.png">
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
 <div id="app">
@@ -268,7 +268,7 @@
             values.</p>
 
             <h3>Training tab</h3>
-            <p><em>Sample!</em> draws N latent points and passes them through
+            <p><em>Sample</em> draws N latent points and passes them through
             the map; <em>Data</em> generates example points from the target
             distribution. The objective (energy-based requires only the
             potential, example-based requires the data), the optimiser, the
@@ -283,7 +283,7 @@
             <ol>
               <li><b>Double well.</b> Set u&#8322; = &minus;2 and
               u&#8324; &asymp; 0.3 on the <em>Densities</em> tab, activate
-              <em>Show target</em> and press <em>Train!</em>. The initially
+              <em>Show target</em> and press <em>Train</em>. The initially
               unimodal density splits into two peaks.
               <button class="try-btn" data-preset="double-well">Set up
               &rarr;</button></li>
@@ -312,7 +312,7 @@
               <button class="try-btn" data-preset="example">Set up
               &rarr;</button></li>
               <li><b>Quality control.</b> After training, press
-              <em>Sample!</em> and activate <em>Show importance weights</em>;
+              <em>Sample</em> and activate <em>Show importance weights</em>;
               N<sub>eff</sub> close to 100% indicates p<sub>x</sub> &asymp;
               p<sup>*</sup>.
               <button class="try-btn" data-preset="weights">Set up
@@ -336,8 +336,8 @@
   </main>
 
 </div>
-<script src="js/math.js?v=12"></script>
-<script src="js/plots.js?v=12"></script>
-<script src="js/app.js?v=12"></script>
+<script src="js/math.js?v=13"></script>
+<script src="js/plots.js?v=13"></script>
+<script src="js/app.js?v=13"></script>
 </body>
 </html>
