@@ -1498,7 +1498,19 @@ function drawFigure() {
             }
         }
     }
-    positionFeHotspots(feRects);
+    positionHots(UI.feHots, feRects);
+
+    /* hover targets over the right-column panel titles */
+    const titleRect = (ax, text, pad) => {
+        const sz = 12 * FS;
+        const w = measureRich(ctx, text, sz);
+        return { x: ax.rect.x + ax.rect.w / 2 - w / 2 - 6,
+                 y: ax.rect.y - pad - sz - 2, w: w + 12, h: sz + 10 };
+    };
+    positionHots(UI.panelHots, [
+        titleRect(axHistZ, "Latent z", 6),
+        titleRect(axHistX, "Transformed x", 6),
+        titleRect(axLoss, "Training loss", 30)]);
 
     /* — loss-slice inset: loss as a function of one parameter — */
     if (S.lossSliceKey !== "None") drawLossSlice(axMain, z, pZ, tg, theme);
@@ -2395,8 +2407,24 @@ const FE_TIPS = [
     "exactly when the two distributions coincide.",
 ];
 
-function initFeHotspots() {
-    UI.feHots = FE_TIPS.map((tip) => {
+const PANEL_TIPS = [
+    "Histogram of the latent sample drawn with 'Sample' (during training: " +
+    "the current training batch), compared with the latent density " +
+    "p_z(z). This sample is the input of the transformation.",
+    "Histogram of the same sample after the transformation, compared with " +
+    "the transformed density p_x(x), the target p*(x) and, if generated, " +
+    "the example data. Agreement between histogram and target indicates " +
+    "a well-trained flow.",
+    "Loss as a function of the training epoch, with its two " +
+    "contributions: the energy term (blue), the Jacobian or entropy term " +
+    "(orange) and their sum (dark line). In energy-based training the " +
+    "total equals the variational free energy up to a constant; in " +
+    "example-based training it is the negative log-likelihood of the " +
+    "data.",
+];
+
+function makeHotspots(tips) {
+    return tips.map((tip) => {
         const h = el("div", { class: "fe-hot" });
         h.dataset.tip = tip;
         document.getElementById("plotcard").appendChild(h);
@@ -2404,10 +2432,15 @@ function initFeHotspots() {
     });
 }
 
-function positionFeHotspots(rects) {
-    if (!UI.feHots) return;
+function initFeHotspots() {
+    UI.feHots = makeHotspots(FE_TIPS);
+    UI.panelHots = makeHotspots(PANEL_TIPS);
+}
+
+function positionHots(hots, rects) {
+    if (!hots) return;
     const v = S._view;
-    UI.feHots.forEach((h, i) => {
+    hots.forEach((h, i) => {
         const r = rects[i];
         if (!r || !v) { h.style.display = "none"; return; }
         h.style.display = "block";
