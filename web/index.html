@@ -14,7 +14,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-192.png">
 <link rel="stylesheet" href="vendor/katex/katex.min.css">
-<link rel="stylesheet" href="style.css?v=25">
+<link rel="stylesheet" href="style.css?v=26">
 </head>
 <body>
 <div id="app">
@@ -352,6 +352,16 @@
               energies.
               <button class="try-btn" data-preset="example">Set up
               &rarr;</button></li>
+              <li><b>Mode collapse.</b> Prepare a deep double well at low
+              temperature and train energy-based: the flow concentrates its
+              probability in a single well, since the reverse
+              Kullback&ndash;Leibler divergence penalises probability in
+              unlikely regions but tolerates missing modes. Then press
+              <em>Data</em>, switch to <em>Example-based</em>, press
+              <em>Reset training</em> and train again: the forward
+              divergence places mass in both wells.
+              <button class="try-btn" data-preset="collapse">Set up
+              &rarr;</button></li>
               <li><b>Quality control.</b> After training, press
               <em>Sample</em> and activate <em>Show importance weights</em>;
               N<sub>eff</sub> close to 100% indicates p<sub>x</sub> &asymp;
@@ -378,8 +388,8 @@
 
 </div>
 <script src="vendor/katex/katex.min.js"></script>
-<script src="js/math.js?v=25"></script>
-<script src="js/plots.js?v=25"></script>
-<script src="js/app.js?v=25"></script>
+<script src="js/math.js?v=26"></script>
+<script src="js/plots.js?v=26"></script>
+<script src="js/app.js?v=26"></script>
 </body>
 </html>

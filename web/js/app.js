@@ -2089,6 +2089,15 @@ function applyPreset(name) {
         setTargetDoubleWell();
         switchTab("train");
         break;
+    case "collapse":
+        resetTraining();                 // start from the identity map
+        setVal("kT", 0.3); setVal("u1", 0.2); setVal("u2", -2.0);
+        setVal("u3", 0.0); setVal("u4", 0.15);
+        setCheckbox(UI.showTargetCb, "showTarget", true);
+        UI.modeRadio.inputs["Energy-based"].checked = true;
+        S.trainMode = "Energy-based";
+        switchTab("train");
+        break;
     case "sgd":
         UI.optSelect.value = "SGD";
         S.optimizer = "SGD";
