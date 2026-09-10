@@ -14,7 +14,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-192.png">
 <link rel="stylesheet" href="vendor/katex/katex.min.css">
-<link rel="stylesheet" href="style.css?v=26">
+<link rel="stylesheet" href="style.css?v=27">
 </head>
 <body>
 <div id="app">
@@ -295,7 +295,14 @@
             follows them through the map; each band keeps its mass, so its
             width shows the local stretching. Moving the pointer over the map
             panel displays z, x, the Jacobian and the densities at that
-            point. <em>Defaults</em> restores the identity map;
+            point. The <em>Animation</em> control morphs the whole figure
+            between the identity map (t = 0) and the current map (t = 1)
+            along the displacement interpolation
+            f<sub>t</sub>(z) = (1&minus;t)z + t&thinsp;f<sub>&theta;</sub>(z),
+            which in one dimension is the optimal-transport path between
+            p<sub>z</sub> and p<sub>x</sub>; coloured dots of equal
+            probability mass ride the curve, and their crowding shows the
+            density. <em>Defaults</em> restores the identity map;
             <em>Randomize</em> assigns random parameter values.</p>
 
             <h3>Training tab</h3>
@@ -388,8 +395,8 @@
 
 </div>
 <script src="vendor/katex/katex.min.js"></script>
-<script src="js/math.js?v=26"></script>
-<script src="js/plots.js?v=26"></script>
-<script src="js/app.js?v=26"></script>
+<script src="js/math.js?v=27"></script>
+<script src="js/plots.js?v=27"></script>
+<script src="js/app.js?v=27"></script>
 </body>
 </html>

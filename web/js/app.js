@@ -55,6 +55,10 @@ const S = {
     lossSliceKey: "None",
     trail: [],            // parameter snapshots captured during training
     cursor: null,         // {z} data coordinate under the pointer, or null
+    morphT: 1,            // displacement-interpolation parameter t in [0,1]
+    morphTau: 1,          // playback phase (t = eased tau)
+    morphPlaying: false,
+    morphLoop: false,
     showData: true,
     showTarget: false,
     showExact: false,
@@ -262,6 +266,16 @@ function evalTransformDisplay(z) {
         live = S.lastTrainedParams;
     const p = live !== null ? live : getParams();
     const { x, J } = evalTransformParams(z, p, S.transform, transformK());
+    /* animation: displacement interpolation between the identity map and
+       the current map, f_t(z) = (1-t) z + t f(z).  In one dimension this
+       is the Wasserstein geodesic between p_z and p_x. */
+    if (S.morphT < 1 && S.trainParamsLive === null && !S.training) {
+        const t = S.morphT;
+        for (let i = 0; i < z.length; i++) {
+            x[i] = (1 - t) * z[i] + t * x[i];
+            J[i] = (1 - t) + t * J[i];
+        }
+    }
     let isMonotone = true;
     if (S.transform === T_POLY) {
         let allPos = true, allNeg = true;
@@ -455,6 +469,64 @@ function buildMapTab() {
     UI.nBandsInput.addEventListener("change", requestRender);
     t.appendChild(el("div", { class: "row" },
         UI.showBandsCb.root, el("span", { text: "N =" }), UI.nBandsInput));
+
+    /* animation: identity -> current map along the Wasserstein geodesic */
+    t.appendChild(sep());
+    t.appendChild(sectTitle("Animation"));
+    UI.morphPlayBtn = el("button", { class: "btn btn-primary",
+                                     text: "▶" });
+    UI.morphPlayBtn.style.flex = "0 0 44px";
+    UI.morphPlayBtn.style.padding = "5px 0";
+    UI.morphPlayBtn.addEventListener("click", toggleMorphPlay);
+    UI.morphSlider = el("input", { type: "range", min: "0", max: "1",
+                                   step: "0.005", value: "1" });
+    UI.morphVal = el("span", { class: "val", text: "t=1.00" });
+    UI.morphVal.style.minWidth = "52px";
+    UI.morphSlider.addEventListener("input", () => {
+        S.morphPlaying = false;
+        UI.morphPlayBtn.textContent = "▶";
+        const tv = parseFloat(UI.morphSlider.value);
+        S.morphTau = Math.acos(1 - 2 * clampNum(tv, 0, 1)) / Math.PI;
+        setMorphT(tv);
+    });
+    updateSliderFill(UI.morphSlider);
+    t.appendChild(el("div", { class: "row" },
+        UI.morphPlayBtn, UI.morphSlider, UI.morphVal));
+    UI.morphLoopCb = checkbox("Loop", false, (v) => { S.morphLoop = v; });
+    t.appendChild(UI.morphLoopCb.root);
+}
+
+function setMorphT(tv) {
+    S.morphT = clampNum(tv, 0, 1);
+    UI.morphSlider.value = String(S.morphT);
+    updateSliderFill(UI.morphSlider);
+    UI.morphVal.textContent = `t=${S.morphT.toFixed(2)}`;
+    requestRender();
+}
+
+function toggleMorphPlay() {
+    if (S.morphPlaying) {
+        S.morphPlaying = false;
+        UI.morphPlayBtn.textContent = "▶";
+        return;
+    }
+    if (S.training) return;
+    if (S.morphT >= 0.999) { S.morphTau = 0; setMorphT(0); }
+    else S.morphTau = Math.acos(1 - 2 * S.morphT) / Math.PI;
+    S.morphPlaying = true;
+    UI.morphPlayBtn.textContent = "❚❚";
+}
+
+function stopMorph() {
+    S.morphPlaying = false;
+    S.morphTau = 1;
+    if (UI.morphPlayBtn) UI.morphPlayBtn.textContent = "▶";
+    if (UI.morphSlider) setMorphT(1);
+    else S.morphT = 1;
+}
+
+function morphActive() {
+    return S.morphT < 0.999 || S.morphPlaying;
 }
 
 function buildTrainingTab() {
@@ -691,6 +763,7 @@ function resetApp() {
     S.showTrails = true;
     S.lossSliceKey = "None";
     if (UI.lossSliceSelect) UI.lossSliceSelect.value = "None";
+    stopMorph();
     clearTrails();
     S.rescale = true;
     S.lossHist = []; S.lossEner = []; S.lossEntr = [];
@@ -1164,6 +1237,22 @@ function drawFigure() {
         const xStar = interpArr(latCdf, tgtCdf, tgtXWide);
         axMain.line(z, xStar, { color: CT_TARGET, lw: 1.9 });
     }
+    /* animation: equal-mass dots riding the morphing curve; each dot
+       carries probability 1/N, so their crowding is the density */
+    if (morphActive()) {
+        const ND = 24;
+        const zd = new Float64Array(ND);
+        for (let i = 0; i < ND; i++)
+            zd[i] = interp1((i + 0.5) / ND, latCdf, z);
+        const { x: xd } = evalTransformDisplay(zd);
+        const tickLen = (mainX[1] - mainX[0]) * 0.022;
+        for (let i = 0; i < ND; i++) {
+            axMain.line([mainX[1] - tickLen, mainX[1]], [xd[i], xd[i]],
+                        { color: bandColor(i, ND), lw: 2, alpha: 0.9 });
+            axMain.marker(zd[i], xd[i],
+                          { r: 4, color: bandColor(i, ND), edgeW: 1.3 });
+        }
+    }
     if (!isMonotone) {
         for (let i = 0; i < nZ - 1; i++) {
             if (Math.sign(J[i]) !== Math.sign(J[i + 1])) {
@@ -1206,7 +1295,8 @@ function drawFigure() {
     if (!isMonotone) {
         try {
             const rng0 = makeRng(0);
-            const zS = sampleLatent(5000, mu, sg, dist, rng0);
+            const zS = sampleLatent(morphActive() ? 1500 : 5000,
+                                    mu, sg, dist, rng0);
             const { x: xS } = evalTransformDisplay(zS);
             const kde = gaussianKde(xS);
             kdeX = linspace(arrMin(xS), arrMax(xS), 400);
@@ -1751,6 +1841,7 @@ function freezeStaticForTraining() {
 
 function doTraining() {
     if (S.training) return;
+    stopMorph();
     clearTrails();
     S.trainParamsPending = null;
     S.trainingEpoch = 0;
@@ -1941,6 +2032,18 @@ function doEndOfTraining() {
 /* ── 30 ms tick: live-parameter blending, progress, render dispatch ─────── */
 
 function tick() {
+    if (S.morphPlaying) {
+        S.morphTau = Math.min(1, S.morphTau + 0.03 / 2.5);
+        setMorphT(0.5 * (1 - Math.cos(Math.PI * S.morphTau)));
+        if (S.morphTau >= 1) {
+            if (S.morphLoop) S.morphTau = 0;
+            else {
+                S.morphPlaying = false;
+                UI.morphPlayBtn.textContent = "▶";
+            }
+        }
+        S.renderDirty = true;
+    }
     if (S.training || S.trainingWasActive) {
         const pending = S.trainParamsPending;
         if (pending !== null) {
@@ -2336,6 +2439,17 @@ function applyTooltips() {
         "probability mass and follow them through the map. The width of " +
         "each band shows the local stretching; its mass is conserved.");
     tip(UI.nBandsInput, "Number of transport bands (2 to 40).");
+    tip(UI.morphPlayBtn, "Animate the figure from the identity map " +
+        "(t = 0) to the current map (t = 1) along the displacement " +
+        "interpolation f_t(z) = (1−t)z + t f(z), the optimal-transport " +
+        "path between p_z and p_x.");
+    if (UI.morphSlider) {
+        UI.morphSlider.dataset.tip = "Interpolation parameter t: drag to " +
+            "move the figure between the identity map (t = 0) and the " +
+            "current map (t = 1). Every panel shows the exact intermediate " +
+            "state.";
+    }
+    tip(UI.morphLoopCb, "Repeat the animation until it is paused.");
     tip(UI.showUCb, "Display the potential U(x) next to the transformed " +
         "density (arbitrary vertical scale).");
     tip(UI.showCDFCb, "Illustrate the construction of the exact map " +
