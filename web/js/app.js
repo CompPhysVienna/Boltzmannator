@@ -1692,8 +1692,9 @@ function drawFigure() {
 /* colour ramp for the transport bands: blue to green over n bands */
 function bandColor(j, n) {
     const t = n > 1 ? j / (n - 1) : 0;
-    const h = 215 - 85 * t;                     // 215 (blue) .. 130 (green)
-    return `hsl(${h}, 62%, ${S.dark ? 58 : 42}%)`;
+    const h = 275 - 210 * t;      // purple (275) .. blue .. green .. yellow (65)
+    const l = S.dark ? 58 + 6 * t : 40 + 6 * t;   // keep yellow readable
+    return `hsl(${h}, 62%, ${l}%)`;
 }
 
 /* current display parameters (live > trained > sliders) */
