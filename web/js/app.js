@@ -56,6 +56,7 @@ const S = {
     trail: [],            // parameter snapshots captured during training
     cursor: null,         // {z} data coordinate under the pointer, or null
     morphT: 1,            // displacement-interpolation parameter t in [0,1]
+    morphMode: "geodesic", // "geodesic" | "replay" (training history)
     morphTau: 1,          // playback phase (t = eased tau)
     morphPlaying: false,
     morphLoop: false,
@@ -260,16 +261,48 @@ function transformK() {
 }
 
 /* display-time transform: honours live / trained / slider parameters */
+/* parameter history of the last training run, for the replay mode:
+   [starting params, snapshots..., final params] */
+function replaySequence() {
+    const P = paramKeys().length;
+    const seq = [];
+    if (S.trainStartingParams !== null && S.trainStartingParams.length === P)
+        seq.push(S.trainStartingParams);
+    for (const tp of S.trail) if (tp.length === P) seq.push(tp);
+    if (S.lastTrainedParams !== null && S.lastTrainedParams.length === P)
+        seq.push(S.lastTrainedParams);
+    return seq.length >= 2 ? seq : null;
+}
+
+function replayParams(t) {
+    const seq = replaySequence();
+    if (seq === null) return null;
+    const u = clampNum(t, 0, 1) * (seq.length - 1);
+    const i = Math.min(seq.length - 2, Math.floor(u));
+    const f = u - i;
+    const a = seq[i], b = seq[i + 1];
+    const out = new Float64Array(a.length);
+    for (let k = 0; k < a.length; k++)
+        out[k] = (1 - f) * a[k] + f * b[k];
+    return out;
+}
+
 function evalTransformDisplay(z) {
     let live = S.trainParamsLive;
     if (live === null && S.useTrainedParams && S.lastTrainedParams !== null)
         live = S.lastTrainedParams;
-    const p = live !== null ? live : getParams();
+    let p = live !== null ? live : getParams();
+    /* animation: either the displacement interpolation between identity
+       and the current map (in one dimension the Wasserstein geodesic
+       between p_z and p_x), or a replay of the training history */
+    const animOn = S.morphT < 1 && S.trainParamsLive === null && !S.training;
+    let geodesic = animOn;
+    if (animOn && S.morphMode === "replay") {
+        const rp = replayParams(S.morphT);
+        if (rp !== null) { p = rp; geodesic = false; }
+    }
     const { x, J } = evalTransformParams(z, p, S.transform, transformK());
-    /* animation: displacement interpolation between the identity map and
-       the current map, f_t(z) = (1-t) z + t f(z).  In one dimension this
-       is the Wasserstein geodesic between p_z and p_x. */
-    if (S.morphT < 1 && S.trainParamsLive === null && !S.training) {
+    if (geodesic) {
         const t = S.morphT;
         for (let i = 0; i < z.length; i++) {
             x[i] = (1 - t) * z[i] + t * x[i];
@@ -493,7 +526,14 @@ function buildMapTab() {
     t.appendChild(el("div", { class: "row" },
         UI.morphPlayBtn, UI.morphSlider, UI.morphVal));
     UI.morphLoopCb = checkbox("Loop", false, (v) => { S.morphLoop = v; });
-    t.appendChild(UI.morphLoopCb.root);
+    UI.morphModeRadio = radioGroup("morph-mode", ["Geodesic", "Training"],
+        "Geodesic", (v) => {
+            S.morphMode = (v === "Training") ? "replay" : "geodesic";
+            requestRender();
+        });
+    t.appendChild(el("div", { class: "row" },
+        el("span", { text: "Path:" }), UI.morphModeRadio.root,
+        el("span", { class: "spacer" }), UI.morphLoopCb.root));
 }
 
 function setMorphT(tv) {
@@ -2450,6 +2490,15 @@ function applyTooltips() {
             "state.";
     }
     tip(UI.morphLoopCb, "Repeat the animation until it is paused.");
+    if (UI.morphModeRadio) {
+        const labs = UI.morphModeRadio.root.querySelectorAll("label");
+        if (labs[0]) labs[0].dataset.tip = "Interpolate between the " +
+            "identity map and the current map along the optimal-transport " +
+            "path.";
+        if (labs[1]) labs[1].dataset.tip = "Replay the parameter history " +
+            "of the last training run; requires a completed training with " +
+            "the current transformation.";
+    }
     tip(UI.showUCb, "Display the potential U(x) next to the transformed " +
         "density (arbitrary vertical scale).");
     tip(UI.showCDFCb, "Illustrate the construction of the exact map " +
@@ -2704,27 +2753,35 @@ function init() {
     updateLossSliceOptions();
     applyStateFromHash();
 
-    /* crosshair readout: track the pointer over the map panel */
+    /* crosshair readout: pointer position in the map panel, or null */
+    const cursorZFromEvent = (e) => {
+        if (!S._view || !S._mainAx) return null;
+        const r = canvas.getBoundingClientRect();
+        const lx = (e.clientX - r.left - S._view.ox) / S._view.s;
+        const ly = (e.clientY - r.top - S._view.oy) / S._view.s;
+        const A = S._mainAx;
+        if (lx < A.rect.x || lx > A.rect.x + A.rect.w ||
+            ly < A.rect.y || ly > A.rect.y + A.rect.h) return null;
+        return A.xlim[0] + (lx - A.rect.x) / A.rect.w
+               * (A.xlim[1] - A.xlim[0]);
+    };
     if (window.matchMedia("(hover: hover)").matches) {
+        /* mouse: the crosshair follows the pointer */
         canvas.addEventListener("mousemove", (e) => {
-            if (!S._view || !S._mainAx) return;
-            const r = canvas.getBoundingClientRect();
-            const lx = (e.clientX - r.left - S._view.ox) / S._view.s;
-            const ly = (e.clientY - r.top - S._view.oy) / S._view.s;
-            const A = S._mainAx;
-            if (lx >= A.rect.x && lx <= A.rect.x + A.rect.w &&
-                ly >= A.rect.y && ly <= A.rect.y + A.rect.h) {
-                const zd = A.xlim[0] + (lx - A.rect.x) / A.rect.w
-                           * (A.xlim[1] - A.xlim[0]);
-                S.cursor = { z: zd };
-                requestRender();
-            } else if (S.cursor !== null) {
-                S.cursor = null;
-                requestRender();
-            }
+            const zd = cursorZFromEvent(e);
+            if (zd !== null) { S.cursor = { z: zd }; requestRender(); }
+            else if (S.cursor !== null) { S.cursor = null; requestRender(); }
         });
         canvas.addEventListener("mouseleave", () => {
             if (S.cursor !== null) { S.cursor = null; requestRender(); }
+        });
+    } else {
+        /* touch: a tap on the map panel places the crosshair, a tap
+           outside removes it */
+        canvas.addEventListener("pointerdown", (e) => {
+            const zd = cursorZFromEvent(e);
+            S.cursor = zd !== null ? { z: zd } : null;
+            requestRender();
         });
     }
 
