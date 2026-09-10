@@ -1278,8 +1278,10 @@ function drawFigure() {
         axMain.line(z, xStar, { color: CT_TARGET, lw: 1.9 });
     }
     /* animation: equal-mass dots riding the morphing curve; each dot
-       carries probability 1/N, so their crowding is the density */
-    if (morphActive()) {
+       carries probability 1/N, so their crowding is the density.  The
+       transport bands show the same information as areas, so the dots
+       and edge ticks are omitted while the bands are displayed. */
+    if (morphActive() && !showBands) {
         const ND = 24;
         const zd = new Float64Array(ND);
         for (let i = 0; i < ND; i++)
@@ -1692,9 +1694,10 @@ function drawFigure() {
 /* colour ramp for the transport bands: blue to green over n bands */
 function bandColor(j, n) {
     const t = n > 1 ? j / (n - 1) : 0;
-    const h = 275 - 210 * t;      // purple (275) .. blue .. green .. yellow (65)
-    const l = S.dark ? 58 + 6 * t : 40 + 6 * t;   // keep yellow readable
-    return `hsl(${h}, 62%, ${l}%)`;
+    const h = 275 - 223 * t;      // purple (275) .. blue .. green .. yellow (52)
+    const s = 62 + 20 * t;        // stronger saturation towards yellow
+    const l = S.dark ? 58 + 6 * t : 40 + 5 * t;   // keep yellow readable
+    return `hsl(${h}, ${s}%, ${l}%)`;
 }
 
 /* current display parameters (live > trained > sliders) */
