@@ -6,6 +6,12 @@ latent distribution *p_z(z)*, shape it with a parametric transformation
 transformation to match a target Boltzmann distribution *p\*(x)* or example
 data. Built with [NiceGUI](https://nicegui.io); it runs in your web browser.
 
+> **No Python? Use the JavaScript edition.** The folder [`web/`](web/)
+> contains a stand-alone JavaScript version of the Boltzmannator that runs
+> entirely in the browser: open `web/index.html`, with no installation and
+> no server. It includes theory and help pages, additional visualizations
+> and an animation of the transformation. See [`web/README.md`](web/README.md).
+
 ---
 
 ## What you need
