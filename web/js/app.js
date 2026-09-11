@@ -1227,8 +1227,12 @@ function drawFigure() {
         }
     }
 
-    /* ghost trails: the map at earlier training epochs */
-    if (S.showTrails && S.trail.length > 0) {
+    /* ghost trails: the map at earlier training epochs.  Hidden while the
+       geodesic animation runs (they trace the optimisation history, not
+       the transport path); kept in the training-replay mode, where the
+       morphing curve retraces exactly these lines. */
+    if (S.showTrails && S.trail.length > 0 &&
+        !(morphActive() && S.morphMode === "geodesic")) {
         const P = paramKeys().length;
         const tc = S.dark ? "#8a8a92" : "#9E9E9E";
         S.trail.forEach((tp, i) => {
