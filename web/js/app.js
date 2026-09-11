@@ -1203,7 +1203,7 @@ function drawFigure() {
             const sub = linspace(zl, zr, 12);
             const { x: fsub } = evalTransformDisplay(sub);
             const col = bandColor(j, NB);
-            const a = (j % 2 === 0) ? 0.16 : 0.09;   // alternate for contrast
+            const a = 0.13;   // uniform: hue and boundary lines separate bands
             /* vertical part: from the top edge down to the curve */
             const p1 = [[zl, mainY[1]], [zr, mainY[1]]];
             for (let i = sub.length - 1; i >= 0; i--)
