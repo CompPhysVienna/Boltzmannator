@@ -1158,7 +1158,7 @@ function drawFigure() {
     axTop.computeTicks({ nx: 6, ny: 3 });
     if (showGrid) axTop.grid();
     axTop.fillUnder(z, pZ, { color: CZ, alpha: FA });
-    axTop.line(z, pZ, { color: CZ, lw: 2.4 });
+    axTop.line(z, pZ, { color: CZ, lw: 2.4, clip: false });
     if (bandEdgesZ !== null) {
         const NB = bandEdgesZ.length - 1;
         for (let j = 0; j < NB; j++) {
@@ -1351,17 +1351,19 @@ function drawFigure() {
     if (showGrid) axRight.grid();
     if (isMonotone) {
         axRight.fillLeft(pxSorted, xSorted, { color: CX, alpha: FA });
-        axRight.line(pxSorted, xSorted, { color: CX, lw: 2.4 });
+        axRight.line(pxSorted, xSorted, { color: CX, lw: 2.4, clip: false });
     } else if (kdeX !== null) {
         axRight.fillLeft(kdeP, kdeX, { color: CX, alpha: FA });
-        axRight.line(kdeP, kdeX, { color: CX, lw: 2.4, dash: [7, 5] });
+        axRight.line(kdeP, kdeX, { color: CX, lw: 2.4, dash: [7, 5],
+                     clip: false });
         axRight.textAxes(0.93, 0.03, "KDE",
             { size: 9 * FS, color: "#B71C1C", ha: "right", va: "bottom",
               bbox: { fc: "#FFEBEE", ec: "#B71C1C", lw: 1.2, pad: 5 } });
     }
     if (S.showTarget && xDispTgt !== null) {
         axRight.fillLeft(pTgtCurve, xDispTgt, { color: CT_TARGET, alpha: FA });
-        axRight.line(pTgtCurve, xDispTgt, { color: CT_TARGET, lw: 2.4 });
+        axRight.line(pTgtCurve, xDispTgt, { color: CT_TARGET, lw: 2.4,
+                     clip: false });
     }
     if (bandEdgesX !== null && isMonotone) {
         const NB = bandEdgesX.length - 1;
@@ -1445,7 +1447,7 @@ function drawFigure() {
         axHistZ.computeTicks({ nx: 5, ny: 4 });
         axHistZ.grid();
         axHistZ.hist(displaySamples, { bins: 40, color: CZ, alpha: 0.4 });
-        axHistZ.line(z, pZ, { color: CZ, lw: 2.4 });
+        axHistZ.line(z, pZ, { color: CZ, lw: 2.4, clip: false });
         axHistZ.frame({ spines: { top: false, right: false, bottom: true,
                                   left: true } });
         axHistZ.xlabel("z");
@@ -1489,13 +1491,16 @@ function drawFigure() {
         axHistX.grid();
         axHistX.hist(samplesX, { bins: 40, color: CX, alpha: 0.4 });
         if (isMonotone)
-            axHistX.line(xSorted, pxSorted, { color: CX, lw: 2.4 });
+            axHistX.line(xSorted, pxSorted, { color: CX, lw: 2.4,
+                          clip: false });
         else if (kdeX2 !== null)
-            axHistX.line(kdeX2, kdeP2, { color: CX, lw: 2.4, dash: [7, 5] });
+            axHistX.line(kdeX2, kdeP2, { color: CX, lw: 2.4, dash: [7, 5],
+                          clip: false });
         if (pTgtCurve !== null) {
             axHistX.fillUnder(xDispTgt, pTgtCurve,
                               { color: CT_TARGET, alpha: FA });
-            axHistX.line(xDispTgt, pTgtCurve, { color: CT_TARGET, lw: 2.4 });
+            axHistX.line(xDispTgt, pTgtCurve, { color: CT_TARGET, lw: 2.4,
+                          clip: false });
         }
         if (S.dataX !== null && S.showData)
             axHistX.hist(S.dataX, { bins: 40, color: CT_TARGET, alpha: 0.35 });
